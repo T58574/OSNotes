@@ -3,8 +3,10 @@ package sync
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"time"
@@ -31,7 +33,7 @@ type Syncer interface {
 	Clone(ctx context.Context, cfg GitConfig) error
 	Pull(ctx context.Context, cfg GitConfig) (*SyncStatus, error)
 	CommitAndPush(ctx context.Context, cfg GitConfig, message string) error
-	CheckAndCreateRepo(ctx context.Context, token string, repoName string) (string, error)
+	CheckAndCreateRepo(ctx context.Context, token string, username string, repoName string) (string, error)
 }
 
 type GitSyncManager struct{}
@@ -109,9 +111,9 @@ func (m *GitSyncManager) CommitAndPush(ctx context.Context, cfg GitConfig, messa
 	})
 }
 
-func (m *GitSyncManager) CheckAndCreateRepo(ctx context.Context, token string, repoName string) (string, error) {
+func (m *GitSyncManager) CheckAndCreateRepo(ctx context.Context, token string, username string, repoName string) (string, error) {
 	url := "https://api.github.com/user/repos"
-	body := fmt.Sprintf(`{"name":"%s","private":true,"auto_init":true}`, repoName)
+	body := fmt.Sprintf(`{"name":"%s","private":true,"auto_init":false}`, repoName)
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBufferString(body))
 	if err != nil {
 		return "", err
@@ -124,11 +126,16 @@ func (m *GitSyncManager) CheckAndCreateRepo(ctx context.Context, token string, r
 		return "", err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusCreated {
-		return fmt.Sprintf("https://github.com/user/%s.git", repoName), nil
+	if resp.StatusCode == http.StatusCreated || resp.StatusCode == http.StatusUnprocessableEntity {
+		return fmt.Sprintf("https://github.com/%s/%s.git", username, repoName), nil
 	}
-	if resp.StatusCode == http.StatusUnprocessableEntity {
-		return fmt.Sprintf("https://github.com/user/%s.git", repoName), nil
+	respBody, _ := ioutil.ReadAll(resp.Body)
+	var ghErr struct {
+		Message string `json:"message"`
 	}
-	return "", fmt.Errorf("unexpected status: %s", resp.Status)
+	_ = json.Unmarshal(respBody, &ghErr)
+	if ghErr.Message != "" {
+		return "", fmt.Errorf("GitHub API Error: %s (Status: %s)", ghErr.Message, resp.Status)
+	}
+	return "", fmt.Errorf("unexpected status: %s (Body: %s)", resp.Status, string(respBody))
 }

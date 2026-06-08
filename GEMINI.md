@@ -7,9 +7,10 @@ This project is a high-performance desktop notes application designed with an iO
 - **Core Framework**: Wails (v2/v3) for native multi-platform compilation (yielding a single `.exe` on Windows).
 - **Frontend**: TypeScript + HTML/CSS/JS using premium aesthetic standards (adapted via the `ui-ux-pro-max` design guidelines). Communication with the backend occurs through automatic Wails JS/TS bindings.
 - **Backend**: Golang (Go) for system-level operations, security, and cloud synchronization.
-- **Sync Engine**: `go-git` (pure Go implementation of Git, enabling git storage without needing a local CLI git client).
+- **Sync Engine**: `go-git` (pure Go implementation of Git, using credentials acquired from the local GitHub CLI `gh`).
 - **Storage**: Flat files on the local filesystem with a `meta.json` indexing file.
-- **Security**: AES-256 GCM (Galois/Counter Mode) encryption for End-to-End Encryption (E2EE) before syncing files to GitHub. Master key is derived using PBKDF2 from a user-supplied Master Password.
+- **Security**: AES-256 GCM (Galois/Counter Mode) encryption for End-to-End Encryption (E2EE). The master key is derived via PBKDF2 from a user-defined password (optional). Verification is performed using an encrypted static `verifier` token saved in the config.
+- **Settings**: Grouped preferences storing accent color, note font size, themes, and sorting order in local storage.
 
 ## [Architectural Overview]
 
@@ -21,11 +22,11 @@ The backend is organized into decoupled modules with clear boundaries:
    - Generates unique note IDs and tracks timestamps.
 
 2. **Sync/Git Module (`internal/sync`)**:
-   - Handles OAuth flow (spawning local redirect server or embedded webview).
-   - Verifies and auto-creates the remote private GitHub repository (`ios-notes-data`).
+   - Handles authentication by querying the local GitHub CLI (`gh auth token`) to fetch the active token, eliminating the need for complex OAuth setup and manual Personal Access Token (PAT) configuration.
+   - Verifies and auto-creates the remote private GitHub repository (`ios-notes-data`) with the actual remote clone URL.
+   - Automatically initializes Git tracking locally, performing a temporary backup and merge sequence to prevent overwriting existing local files when connecting to Git for the first time.
    - Performs git sync operations (Pull, Stage, Commit, Push) using `go-git`.
-   - Handles conflicts by adopting remote changes and writing local versions with `[Conflict YYYY-MM-DD_HH-MM]` suffixes.
-   - Credentials isolation: `config.json` containing sensitive GitHub Personal Access Tokens resides outside the synced repository directory to prevent key leakage.
+   - Credentials isolation: `config.json` containing encryption verifier and git credentials resides outside the synced repository directory.
 
 3. **Crypto Module (`internal/crypto`)**:
    - Key derivation using PBKDF2 from user master password.
@@ -42,7 +43,7 @@ The local application directory is located at `~/.osnotes/`:
 
 ```
 ~/.osnotes/
-├── config.json          (Contains encryption salt and git sync credentials, kept outside git)
+├── config.json          (Contains encryption salt, verifier, password config, and sync credentials)
 └── repo/                (The actual synchronized local Git repository)
     ├── meta.json        (Plaintext note metadata cache)
     └── notes/

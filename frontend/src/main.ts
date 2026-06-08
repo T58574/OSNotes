@@ -13,7 +13,11 @@ import {
 	DeleteNote,
 	GetSyncConfig,
 	SaveSyncConfig,
-	Sync
+	Sync,
+	IsPasswordEnabled,
+	AutoUnlockIfNeeded,
+	SetPasswordEnabled,
+	ConnectWithGitHubCLI
 } from '../wailsjs/go/main/App';
 
 interface Folder {
@@ -100,17 +104,43 @@ document.addEventListener('DOMContentLoaded', () => {
 	const masterPasswordInput = document.getElementById('masterPasswordInput') as HTMLInputElement;
 	const unlockBtn = document.getElementById('unlockBtn') as HTMLElement;
 
-	const syncModal = document.getElementById('syncModal') as HTMLElement;
-	const openSyncSettingsBtn = document.getElementById('openSyncSettingsBtn') as HTMLElement;
-	const closeSyncSettingsBtn = document.getElementById('closeSyncSettingsBtn') as HTMLElement;
-	const saveSyncSettingsBtn = document.getElementById('saveSyncSettingsBtn') as HTMLElement;
-	const syncRepoUrl = document.getElementById('syncRepoUrl') as HTMLInputElement;
-	const syncUsername = document.getElementById('syncUsername') as HTMLInputElement;
-	const syncEmail = document.getElementById('syncEmail') as HTMLInputElement;
-	const syncToken = document.getElementById('syncToken') as HTMLInputElement;
+	const openSettingsBtn = document.getElementById('openSettingsBtn') as HTMLElement;
+	const settingsModal = document.getElementById('settingsModal') as HTMLElement;
+	const closeSettingsBtn = document.getElementById('closeSettingsBtn') as HTMLElement;
+
+	const settingsPasswordToggle = document.getElementById('settingsPasswordToggle') as HTMLInputElement;
+	const settingsChangePasswordRow = document.getElementById('settingsChangePasswordRow') as HTMLElement;
+	const settingsChangePasswordBtn = document.getElementById('settingsChangePasswordBtn') as HTMLElement;
+
+	const syncLoggedOutState = document.getElementById('syncLoggedOutState') as HTMLElement;
+	const syncLoggedInState = document.getElementById('syncLoggedInState') as HTMLElement;
+	const githubLoginBtn = document.getElementById('githubLoginBtn') as HTMLElement;
+	const syncUserText = document.getElementById('syncUserText') as HTMLElement;
+	const syncNowBtn = document.getElementById('syncNowBtn') as HTMLElement;
+	const syncLogoutBtn = document.getElementById('syncLogoutBtn') as HTMLElement;
+
+
+	const settingsThemeSelect = document.getElementById('settingsThemeSelect') as HTMLSelectElement;
+	const settingsFontSizeSelect = document.getElementById('settingsFontSizeSelect') as HTMLSelectElement;
+	const settingsSortSelect = document.getElementById('settingsSortSelect') as HTMLSelectElement;
+
+	const passwordSettingsModal = document.getElementById('passwordSettingsModal') as HTMLElement;
+	const passwordSettingsTitle = document.getElementById('passwordSettingsTitle') as HTMLElement;
+	const passwordSettingsMessage = document.getElementById('passwordSettingsMessage') as HTMLElement;
+	const oldPasswordInput = document.getElementById('oldPasswordInput') as HTMLInputElement;
+	const newPasswordInput = document.getElementById('newPasswordInput') as HTMLInputElement;
+	const confirmPasswordInput = document.getElementById('confirmPasswordInput') as HTMLInputElement;
+	const cancelPasswordSettingsBtn = document.getElementById('cancelPasswordSettingsBtn') as HTMLElement;
+	const savePasswordSettingsBtn = document.getElementById('savePasswordSettingsBtn') as HTMLElement;
 
 	async function checkLockStatus() {
 		try {
+			const autoUnlocked = await AutoUnlockIfNeeded();
+			if (autoUnlocked) {
+				passwordModal.classList.add('hidden');
+				await loadData();
+				return;
+			}
 			const locked = await IsLocked();
 			if (locked) {
 				passwordModal.classList.remove('hidden');
@@ -290,7 +320,14 @@ document.addEventListener('DOMContentLoaded', () => {
 		noNotesMessage.classList.add('hidden');
 		notesList.classList.remove('hidden');
 
-		filteredNotes.sort((a, b) => b.updated_at - a.updated_at);
+		const sortOrder = localStorage.getItem('ios-notes-sort') || 'updated';
+		if (sortOrder === 'updated') {
+			filteredNotes.sort((a, b) => b.updated_at - a.updated_at);
+		} else if (sortOrder === 'created') {
+			filteredNotes.sort((a, b) => b.created_at - a.created_at);
+		} else if (sortOrder === 'title') {
+			filteredNotes.sort((a, b) => a.title.localeCompare(b.title));
+		}
 
 		const groups = groupNotesByDate(filteredNotes);
 
@@ -458,7 +495,14 @@ document.addEventListener('DOMContentLoaded', () => {
 		}
 
 		if (filteredNotes.length > 0) {
-			filteredNotes.sort((a, b) => b.updated_at - a.updated_at);
+			const sortOrder = localStorage.getItem('ios-notes-sort') || 'updated';
+			if (sortOrder === 'updated') {
+				filteredNotes.sort((a, b) => b.updated_at - a.updated_at);
+			} else if (sortOrder === 'created') {
+				filteredNotes.sort((a, b) => b.created_at - a.created_at);
+			} else if (sortOrder === 'title') {
+				filteredNotes.sort((a, b) => a.title.localeCompare(b.title));
+			}
 			selectNote(filteredNotes[0].id);
 		} else {
 			clearEditor();
@@ -687,23 +731,8 @@ document.addEventListener('DOMContentLoaded', () => {
 	});
 
 	function initTheme() {
-		const savedTheme = localStorage.getItem('ios-notes-theme');
-		if (savedTheme === 'dark') {
-			appContainer.classList.add('dark-theme');
-			toggleThemeIcon(true);
-		} else if (savedTheme === 'light') {
-			appContainer.classList.add('light-theme');
-			toggleThemeIcon(false);
-		} else {
-			const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-			if (prefersDark) {
-				appContainer.classList.add('dark-theme');
-				toggleThemeIcon(true);
-			} else {
-				appContainer.classList.add('light-theme');
-				toggleThemeIcon(false);
-			}
-		}
+		const savedTheme = localStorage.getItem('ios-notes-theme') || 'system';
+		applyTheme(savedTheme);
 	}
 
 	function toggleThemeIcon(isDark: boolean) {
@@ -925,38 +954,221 @@ document.addEventListener('DOMContentLoaded', () => {
 		renderNotesList();
 	});
 
-	openSyncSettingsBtn.addEventListener('click', async () => {
+	async function updateSyncUI() {
 		try {
 			const config = await GetSyncConfig();
-			syncRepoUrl.value = config.remote_url || '';
-			syncUsername.value = config.username || '';
-			syncEmail.value = config.email || '';
-			syncToken.value = config.token || '';
-			syncModal.classList.remove('hidden');
+			if (config.token && config.remote_url) {
+				syncLoggedOutState.classList.add('hidden');
+				syncLoggedInState.classList.remove('hidden');
+				syncUserText.textContent = `Аккаунт: ${config.username || 'GitHub User'}`;
+			} else {
+				syncLoggedOutState.classList.remove('hidden');
+				syncLoggedInState.classList.add('hidden');
+			}
+		} catch (err) {
+			console.error(err);
+		}
+	}
+
+	openSettingsBtn.addEventListener('click', async () => {
+		try {
+			await updateSyncUI();
+			const pwdEnabled = await IsPasswordEnabled();
+			settingsPasswordToggle.checked = pwdEnabled;
+			if (pwdEnabled) {
+				settingsChangePasswordRow.classList.remove('hidden');
+			} else {
+				settingsChangePasswordRow.classList.add('hidden');
+			}
+			settingsThemeSelect.value = localStorage.getItem('ios-notes-theme') || 'system';
+			settingsFontSizeSelect.value = localStorage.getItem('ios-notes-font-size') || 'medium';
+			settingsSortSelect.value = localStorage.getItem('ios-notes-sort') || 'updated';
+			const currentAccent = localStorage.getItem('ios-notes-accent') || 'gold';
+			document.querySelectorAll('.accent-dot').forEach(dot => {
+				if ((dot as HTMLElement).dataset.color === currentAccent) {
+					dot.classList.add('active');
+				} else {
+					dot.classList.remove('active');
+				}
+			});
+			settingsModal.classList.remove('hidden');
 		} catch (err) {
 			console.error(err);
 		}
 	});
 
-	closeSyncSettingsBtn.addEventListener('click', () => {
-		syncModal.classList.add('hidden');
+	closeSettingsBtn.addEventListener('click', () => {
+		settingsModal.classList.add('hidden');
 	});
 
-	saveSyncSettingsBtn.addEventListener('click', async () => {
-		const cfg = {
-			remote_url: syncRepoUrl.value.trim(),
-			username: syncUsername.value.trim(),
-			email: syncEmail.value.trim(),
-			token: syncToken.value.trim()
-		};
-
+	githubLoginBtn.addEventListener('click', async () => {
+		githubLoginBtn.classList.add('disabled');
+		const originalText = githubLoginBtn.innerHTML;
+		githubLoginBtn.innerHTML = '<span>Ожидание авторизации...</span>';
 		try {
-			await SaveSyncConfig(cfg);
-			syncModal.classList.add('hidden');
-			alert('Настройки сохранены!');
+			const username = await ConnectWithGitHubCLI();
+			if (username) {
+				alert(`Успешно авторизовано под ником ${username}! Репозиторий ios-notes-data настроен.`);
+				await updateSyncUI();
+				await loadData();
+			}
 		} catch (err) {
 			console.error(err);
-			alert('Ошибка сохранения: ' + err);
+			alert('Ошибка авторизации: ' + err);
+		} finally {
+			githubLoginBtn.classList.remove('disabled');
+			githubLoginBtn.innerHTML = originalText;
+		}
+	});
+
+	syncNowBtn.addEventListener('click', async () => {
+		syncNowBtn.classList.add('disabled');
+		const originalText = syncNowBtn.textContent;
+		syncNowBtn.textContent = 'Синхронизация...';
+		try {
+			await Sync();
+			alert('Синхронизация выполнена успешно!');
+			await loadData();
+		} catch (err) {
+			console.error(err);
+			alert('Ошибка синхронизации: ' + err);
+		} finally {
+			syncNowBtn.classList.remove('disabled');
+			syncNowBtn.textContent = originalText;
+		}
+	});
+
+	syncLogoutBtn.addEventListener('click', async () => {
+		if (confirm('Вы уверены, что хотите отключить синхронизацию GitHub? Это очистит учетные данные.')) {
+			try {
+				await SaveSyncConfig({
+					remote_url: '',
+					username: '',
+					email: '',
+					token: ''
+				});
+				await updateSyncUI();
+				alert('Синхронизация отключена.');
+			} catch (err) {
+				console.error(err);
+				alert('Ошибка: ' + err);
+			}
+		}
+	});
+
+	let passwordAction: 'enable' | 'disable' | 'change' = 'enable';
+
+	settingsPasswordToggle.addEventListener('change', async () => {
+		const enabled = settingsPasswordToggle.checked;
+		const pwdEnabled = await IsPasswordEnabled();
+		if (enabled && !pwdEnabled) {
+			passwordAction = 'enable';
+			passwordSettingsTitle.textContent = 'Включить защиту';
+			passwordSettingsMessage.textContent = 'Установите мастер-пароль для шифрования ваших заметок.';
+			oldPasswordInput.classList.add('hidden');
+			newPasswordInput.classList.remove('hidden');
+			confirmPasswordInput.classList.remove('hidden');
+			oldPasswordInput.value = '';
+			newPasswordInput.value = '';
+			confirmPasswordInput.value = '';
+			passwordSettingsModal.classList.remove('hidden');
+		} else if (!enabled && pwdEnabled) {
+			passwordAction = 'disable';
+			passwordSettingsTitle.textContent = 'Отключить защиту';
+			passwordSettingsMessage.textContent = 'Введите текущий пароль для расшифрования заметок.';
+			oldPasswordInput.classList.remove('hidden');
+			newPasswordInput.classList.add('hidden');
+			confirmPasswordInput.classList.add('hidden');
+			oldPasswordInput.value = '';
+			newPasswordInput.value = '';
+			confirmPasswordInput.value = '';
+			passwordSettingsModal.classList.remove('hidden');
+		}
+	});
+
+	settingsChangePasswordBtn.addEventListener('click', () => {
+		passwordAction = 'change';
+		passwordSettingsTitle.textContent = 'Изменить мастер-пароль';
+		passwordSettingsMessage.textContent = 'Введите текущий и новый пароли.';
+		oldPasswordInput.classList.remove('hidden');
+		newPasswordInput.classList.remove('hidden');
+		confirmPasswordInput.classList.remove('hidden');
+		oldPasswordInput.value = '';
+		newPasswordInput.value = '';
+		confirmPasswordInput.value = '';
+		passwordSettingsModal.classList.remove('hidden');
+	});
+
+	cancelPasswordSettingsBtn.addEventListener('click', async () => {
+		passwordSettingsModal.classList.add('hidden');
+		const pwdEnabled = await IsPasswordEnabled();
+		settingsPasswordToggle.checked = pwdEnabled;
+	});
+
+	savePasswordSettingsBtn.addEventListener('click', async () => {
+		const oldPwd = oldPasswordInput.value;
+		const newPwd = newPasswordInput.value;
+		const confPwd = confirmPasswordInput.value;
+		if (passwordAction === 'enable') {
+			if (!newPwd) {
+				alert('Пароль не может быть пустым');
+				return;
+			}
+			if (newPwd !== confPwd) {
+				alert('Пароли не совпадают');
+				return;
+			}
+			try {
+				const success = await SetPasswordEnabled(true, '', newPwd);
+				if (success) {
+					passwordSettingsModal.classList.add('hidden');
+					settingsChangePasswordRow.classList.remove('hidden');
+					alert('Пароль успешно установлен!');
+				} else {
+					alert('Не удалось установить пароль');
+				}
+			} catch (err) {
+				alert('Ошибка: ' + err);
+			}
+		} else if (passwordAction === 'disable') {
+			if (!oldPwd) {
+				alert('Введите текущий пароль');
+				return;
+			}
+			try {
+				const success = await SetPasswordEnabled(false, oldPwd, '');
+				if (success) {
+					passwordSettingsModal.classList.add('hidden');
+					settingsChangePasswordRow.classList.add('hidden');
+					alert('Защита паролем успешно отключена');
+				} else {
+					alert('Неверный пароль');
+					settingsPasswordToggle.checked = true;
+				}
+			} catch (err) {
+				alert('Ошибка: ' + err);
+				settingsPasswordToggle.checked = true;
+			}
+		} else if (passwordAction === 'change') {
+			if (!oldPwd || !newPwd) {
+				alert('Заполните все поля');
+				return;
+			}
+			if (newPwd !== confPwd) {
+				alert('Новые пароли не совпадают');
+				return;
+			}
+			try {
+				const success = await SetPasswordEnabled(true, oldPwd, newPwd);
+				if (success) {
+					passwordSettingsModal.classList.add('hidden');
+					alert('Пароль изменен!');
+				} else {
+					alert('Неверный текущий пароль');
+				}
+			} catch (err) {
+				alert('Ошибка: ' + err);
+			}
 		}
 	});
 
@@ -964,7 +1176,6 @@ document.addEventListener('DOMContentLoaded', () => {
 		syncBtn.classList.add('disabled');
 		const originalSvg = syncBtn.innerHTML;
 		syncBtn.innerHTML = '...';
-
 		try {
 			await Sync();
 			alert('Синхронизация успешна!');
@@ -977,6 +1188,91 @@ document.addEventListener('DOMContentLoaded', () => {
 			syncBtn.innerHTML = originalSvg;
 		}
 	});
+
+	settingsThemeSelect.addEventListener('change', () => {
+		const val = settingsThemeSelect.value;
+		localStorage.setItem('ios-notes-theme', val);
+		applyTheme(val);
+	});
+
+	settingsFontSizeSelect.addEventListener('change', () => {
+		setEditorFontSize(settingsFontSizeSelect.value);
+	});
+
+	settingsSortSelect.addEventListener('change', () => {
+		localStorage.setItem('ios-notes-sort', settingsSortSelect.value);
+		renderNotesList();
+	});
+
+	document.querySelectorAll('.accent-dot').forEach(dot => {
+		dot.addEventListener('click', (e) => {
+			const color = (e.target as HTMLElement).dataset.color;
+			if (color) {
+				setAccentColor(color);
+				document.querySelectorAll('.accent-dot').forEach(d => d.classList.remove('active'));
+				(e.target as HTMLElement).classList.add('active');
+			}
+		});
+	});
+
+	function setAccentColor(colorName: string) {
+		const colors: Record<string, { hex: string, rgb: string }> = {
+			gold: { hex: '#e4a11b', rgb: '228, 161, 27' },
+			blue: { hex: '#007aff', rgb: '0, 122, 255' },
+			green: { hex: '#34c759', rgb: '52, 199, 89' },
+			purple: { hex: '#af52de', rgb: '175, 82, 222' },
+			red: { hex: '#ff3b30', rgb: '255, 59, 48' }
+		};
+		const theme = colors[colorName] || colors.gold;
+		document.documentElement.style.setProperty('--accent', theme.hex);
+		document.documentElement.style.setProperty('--accent-rgb', theme.rgb);
+		localStorage.setItem('ios-notes-accent', colorName);
+	}
+
+	function initAccentColors() {
+		const currentAccent = localStorage.getItem('ios-notes-accent') || 'gold';
+		setAccentColor(currentAccent);
+	}
+
+	function setEditorFontSize(sizeName: string) {
+		const sizes: Record<string, string> = {
+			small: '0.9rem',
+			medium: '1.05rem',
+			large: '1.2rem',
+			xl: '1.4rem'
+		};
+		const size = sizes[sizeName] || sizes.medium;
+		document.documentElement.style.setProperty('--editor-font-size', size);
+		localStorage.setItem('ios-notes-font-size', sizeName);
+	}
+
+	function initEditorFontSize() {
+		const currentSize = localStorage.getItem('ios-notes-font-size') || 'medium';
+		setEditorFontSize(currentSize);
+	}
+
+	function applyTheme(theme: string) {
+		appContainer.classList.remove('light-theme', 'dark-theme');
+		if (theme === 'dark') {
+			appContainer.classList.add('dark-theme');
+			toggleThemeIcon(true);
+		} else if (theme === 'light') {
+			appContainer.classList.add('light-theme');
+			toggleThemeIcon(false);
+		} else {
+			const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+			if (prefersDark) {
+				appContainer.classList.add('dark-theme');
+				toggleThemeIcon(true);
+			} else {
+				appContainer.classList.add('light-theme');
+				toggleThemeIcon(false);
+			}
+		}
+		if (settingsThemeSelect) {
+			settingsThemeSelect.value = theme;
+		}
+	}
 
 	toggleSidebarsBtn.addEventListener('click', () => {
 		const isFoldersHidden = appContainer.classList.contains('folders-hidden');
@@ -992,5 +1288,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	});
 
 	initTheme();
+	initAccentColors();
+	initEditorFontSize();
 	checkLockStatus();
 });

@@ -12,7 +12,7 @@
     <div id="app" class="ios-notes-app">
         <aside class="panel folders-panel" id="foldersPanel">
             <header class="panel-header">
-                <span class="header-action text-accent" id="openSyncSettingsBtn">Настройки</span>
+                <span class="header-action text-accent" id="openSettingsBtn">Настройки</span>
                 <span class="header-title">Папки</span>
                 <span class="header-action-placeholder"></span>
             </header>
@@ -168,20 +168,122 @@
         </div>
     </div>
 
-    <!-- Модальное окно настроек синхронизации GitHub -->
-    <div class="modal-overlay hidden" id="syncModal">
-        <div class="ios-alert settings-alert">
-            <div class="alert-title">Настройки Синхронизации</div>
-            <div class="alert-message">Настройте синхронизацию с вашим приватным репозиторием GitHub.</div>
+    <!-- Универсальное модальное окно настроек -->
+    <div class="modal-overlay hidden" id="settingsModal">
+        <div class="ios-settings-modal">
+            <header class="settings-header">
+                <h2>Настройки</h2>
+                <button class="settings-close-btn" id="closeSettingsBtn">Готово</button>
+            </header>
+            
+            <div class="settings-content">
+                <!-- Секция: Безопасность -->
+                <div class="settings-section">
+                    <div class="settings-section-title">Безопасность</div>
+                    <div class="settings-group">
+                        <div class="settings-row">
+                            <span class="settings-row-label">Защита мастер-паролем</span>
+                            <label class="ios-switch">
+                                <input type="checkbox" id="settingsPasswordToggle">
+                                <span class="ios-switch-slider"></span>
+                            </label>
+                        </div>
+                        <div class="settings-row hidden" id="settingsChangePasswordRow">
+                            <button class="settings-action-link" id="settingsChangePasswordBtn">Изменить мастер-пароль</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Секция: Синхронизация -->
+                <div class="settings-section">
+                    <div class="settings-section-title">Синхронизация GitHub</div>
+                    <div class="settings-group">
+                        <div class="settings-row" id="syncLoggedOutState" style="flex-direction: column; gap: 12px; align-items: stretch;">
+                            <button class="settings-action-btn-inline font-semibold" id="githubLoginBtn" style="color: #007aff; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                                <svg viewBox="0 0 24 24" style="width: 20px; height: 20px; fill: currentColor;"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.579.688.481C19.137 20.164 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>
+                                <span>Авторизовать через GitHub CLI</span>
+                            </button>
+                        </div>
+                        <div class="hidden" id="syncLoggedInState">
+                            <div class="settings-row" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+                                <span class="settings-row-label" style="font-weight: 600;">Подключено к GitHub</span>
+                                <span style="font-size: 0.85rem; color: var(--text-secondary);" id="syncUserText">Аккаунт: </span>
+                            </div>
+                            <div class="settings-row">
+                                <button class="settings-action-btn-inline" id="syncNowBtn">Синхронизировать сейчас</button>
+                            </div>
+                            <div class="settings-row">
+                                <button class="settings-action-link" id="syncLogoutBtn" style="color: #ff3b30; text-align: center;">Отключить синхронизацию</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Секция: Оформление -->
+                <div class="settings-section">
+                    <div class="settings-section-title">Оформление</div>
+                    <div class="settings-group">
+                        <div class="settings-row">
+                            <span class="settings-row-label">Тема оформления</span>
+                            <select id="settingsThemeSelect" class="ios-select">
+                                <option value="system">Системная</option>
+                                <option value="light">Светлая</option>
+                                <option value="dark">Темная</option>
+                            </select>
+                        </div>
+                        <div class="settings-row">
+                            <span class="settings-row-label">Цвет акцента</span>
+                            <div class="accent-color-picker">
+                                <button class="accent-dot gold active" data-color="gold" title="Золотой"></button>
+                                <button class="accent-dot blue" data-color="blue" title="Синий"></button>
+                                <button class="accent-dot green" data-color="green" title="Зеленый"></button>
+                                <button class="accent-dot purple" data-color="purple" title="Фиолетовый"></button>
+                                <button class="accent-dot red" data-color="red" title="Красный"></button>
+                            </div>
+                        </div>
+                        <div class="settings-row">
+                            <span class="settings-row-label">Размер шрифта заметок</span>
+                            <select id="settingsFontSizeSelect" class="ios-select">
+                                <option value="small">Мелкий</option>
+                                <option value="medium" selected>Средний</option>
+                                <option value="large">Крупный</option>
+                                <option value="xl">Очень крупный</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Секция: Сортировка -->
+                <div class="settings-section">
+                    <div class="settings-section-title">Сортировка заметок</div>
+                    <div class="settings-group">
+                        <div class="settings-row">
+                            <span class="settings-row-label">Сортировать по</span>
+                            <select id="settingsSortSelect" class="ios-select">
+                                <option value="updated">Дате изменения</option>
+                                <option value="created">Дате создания</option>
+                                <option value="title">Названию</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно установки/изменения пароля -->
+    <div class="modal-overlay hidden" id="passwordSettingsModal">
+        <div class="ios-alert">
+            <div class="alert-title" id="passwordSettingsTitle">Настройка пароля</div>
+            <div class="alert-message" id="passwordSettingsMessage">Введите пароль для защиты ваших заметок.</div>
             <div class="alert-input-wrapper">
-                <input type="text" id="syncRepoUrl" placeholder="GitHub Repository URL (https://github.com/.../...)">
-                <input type="text" id="syncUsername" placeholder="Имя пользователя GitHub">
-                <input type="email" id="syncEmail" placeholder="Email (для Git-коммитов)">
-                <input type="password" id="syncToken" placeholder="GitHub Personal Access Token" autocomplete="new-password">
+                <input type="password" id="oldPasswordInput" placeholder="Текущий пароль" class="hidden">
+                <input type="password" id="newPasswordInput" placeholder="Новый пароль">
+                <input type="password" id="confirmPasswordInput" placeholder="Подтверждение пароля">
             </div>
             <div class="alert-actions">
-                <button class="alert-action-btn cancel" id="closeSyncSettingsBtn">Закрыть</button>
-                <button class="alert-action-btn confirm" id="saveSyncSettingsBtn">Сохранить</button>
+                <button class="alert-action-btn cancel" id="cancelPasswordSettingsBtn">Отмена</button>
+                <button class="alert-action-btn confirm" id="savePasswordSettingsBtn">Сохранить</button>
             </div>
         </div>
     </div>
