@@ -11,17 +11,9 @@ import {
 	GetNoteContent,
 	SaveNote,
 	DeleteNote,
-	GetSyncConfig,
-	SaveSyncConfig,
-	Sync,
 	IsPasswordEnabled,
 	AutoUnlockIfNeeded,
-	SetPasswordEnabled,
-	ConnectWithGitHubCLI,
-	OpenURL,
-	ResetCloudData,
-	PullFromCloud,
-	ForcePushToCloud
+	SetPasswordEnabled
 } from '../wailsjs/go/main/App';
 
 interface Folder {
@@ -49,7 +41,6 @@ document.addEventListener('DOMContentLoaded', () => {
 	let currentNoteId: string | null = null;
 	let isCodeMode = false;
 	let autoSaveTimeout: number | null = null;
-	let autoSyncTimeout: number | null = null;
 	let folderToDeleteId: string | null = null;
 
 	const appContainer = document.getElementById('app') as HTMLElement;
@@ -103,7 +94,6 @@ document.addEventListener('DOMContentLoaded', () => {
 	const confirmDelFolderBtn = document.getElementById('confirmDelFolderBtn') as HTMLElement;
 
 	const formatPopup = document.getElementById('formatPopup') as HTMLElement;
-	const syncBtn = document.getElementById('syncBtn') as HTMLElement;
 
 	const passwordModal = document.getElementById('passwordModal') as HTMLElement;
 	const masterPasswordInput = document.getElementById('masterPasswordInput') as HTMLInputElement;
@@ -117,23 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	const settingsChangePasswordRow = document.getElementById('settingsChangePasswordRow') as HTMLElement;
 	const settingsChangePasswordBtn = document.getElementById('settingsChangePasswordBtn') as HTMLElement;
 
-	const syncLoggedOutState = document.getElementById('syncLoggedOutState') as HTMLElement;
-	const syncLoggedInState = document.getElementById('syncLoggedInState') as HTMLElement;
-	const githubLoginBtn = document.getElementById('githubLoginBtn') as HTMLElement;
-	const syncUserText = document.getElementById('syncUserText') as HTMLElement;
-	const syncNowBtn = document.getElementById('syncNowBtn') as HTMLElement;
-	const syncLogoutBtn = document.getElementById('syncLogoutBtn') as HTMLElement;
-	const pullFromCloudBtn = document.getElementById('pullFromCloudBtn') as HTMLElement;
-	const forcePushToCloudBtn = document.getElementById('forcePushToCloudBtn') as HTMLElement;
-	const resetCloudDataBtn = document.getElementById('resetCloudDataBtn') as HTMLElement;
 
-	const ghCliModal = document.getElementById('ghCliModal') as HTMLElement;
-	const ghCliModalTitle = document.getElementById('ghCliModalTitle') as HTMLElement;
-	const ghCliModalMessage = document.getElementById('ghCliModalMessage') as HTMLElement;
-	const ghCliDownloadBtn = document.getElementById('ghCliDownloadBtn') as HTMLElement;
-	const ghCliCopyCmdBtn = document.getElementById('ghCliCopyCmdBtn') as HTMLElement;
-	const ghCliCancelBtn = document.getElementById('ghCliCancelBtn') as HTMLElement;
-	const ghCliRetryBtn = document.getElementById('ghCliRetryBtn') as HTMLElement;
 
 
 	const settingsThemeSelect = document.getElementById('settingsThemeSelect') as HTMLSelectElement;
@@ -243,7 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 		const allNotesFolder: Folder = {
 			id: 'all-notes',
-			name: 'Все iCloud',
+			name: 'Все заметки',
 			is_system: true,
 			created_at: 0,
 			count: notes.length
@@ -662,7 +636,6 @@ document.addEventListener('DOMContentLoaded', () => {
 					await SaveNote(currentNoteId, folderId, titleText, htmlContent);
 					updateFolderCounts();
 					renderFolders();
-					triggerAutoSync();
 				} catch (err) {
 					console.error(err);
 				}
@@ -670,22 +643,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		}, 1500);
 	}
 
-	function triggerAutoSync() {
-		if (autoSyncTimeout) {
-			clearTimeout(autoSyncTimeout);
-		}
-		autoSyncTimeout = window.setTimeout(async () => {
-			try {
-				const config = await GetSyncConfig();
-				if (config.token && config.remote_url) {
-					await Sync();
-					await loadData();
-				}
-			} catch (err) {
-				console.error(err);
-			}
-		}, 60000);
-	}
+
 
 	function updateNoteItemDOM(note: NoteMetadata) {
 		const item = notesList.querySelector(`.note-item[data-id="${note.id}"]`);
@@ -725,7 +683,6 @@ document.addEventListener('DOMContentLoaded', () => {
 			await SaveNote(currentNoteId, folderId, titleText, htmlContent);
 			doneBtn.classList.add('hidden');
 			await loadData();
-			triggerAutoSync();
 		} catch (err) {
 			console.error(err);
 		}
@@ -745,7 +702,6 @@ document.addEventListener('DOMContentLoaded', () => {
 			if (window.innerWidth < 768) {
 				setMobileView('notes');
 			}
-			triggerAutoSync();
 		} catch (err) {
 			console.error(err);
 		}
@@ -801,7 +757,6 @@ document.addEventListener('DOMContentLoaded', () => {
 			await CreateFolder(name);
 			folderModal.classList.add('hidden');
 			await loadData();
-			triggerAutoSync();
 		} catch (err) {
 			console.error(err);
 		}
@@ -820,7 +775,6 @@ document.addEventListener('DOMContentLoaded', () => {
 			deleteFolderModal.classList.add('hidden');
 			folderToDeleteId = null;
 			await loadData();
-			triggerAutoSync();
 		} catch (err) {
 			console.error(err);
 		}
@@ -992,25 +946,8 @@ document.addEventListener('DOMContentLoaded', () => {
 		renderNotesList();
 	});
 
-	async function updateSyncUI() {
-		try {
-			const config = await GetSyncConfig();
-			if (config.token && config.remote_url) {
-				syncLoggedOutState.classList.add('hidden');
-				syncLoggedInState.classList.remove('hidden');
-				syncUserText.textContent = `Аккаунт: ${config.username || 'GitHub User'}`;
-			} else {
-				syncLoggedOutState.classList.remove('hidden');
-				syncLoggedInState.classList.add('hidden');
-			}
-		} catch (err) {
-			console.error(err);
-		}
-	}
-
 	openSettingsBtn.addEventListener('click', async () => {
 		try {
-			await updateSyncUI();
 			const pwdEnabled = await IsPasswordEnabled();
 			settingsPasswordToggle.checked = pwdEnabled;
 			if (pwdEnabled) {
@@ -1039,180 +976,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		settingsModal.classList.add('hidden');
 	});
 
-	async function handleGitHubCLIConnect() {
-		githubLoginBtn.classList.add('disabled');
-		const originalText = githubLoginBtn.innerHTML;
-		githubLoginBtn.innerHTML = '<span>Ожидание авторизации...</span>';
-		try {
-			const username = await ConnectWithGitHubCLI();
-			if (username) {
-				alert(`Успешно авторизовано под ником ${username}! Репозиторий ios-notes-data настроен.`);
-				await updateSyncUI();
-				await loadData();
-			}
-		} catch (err) {
-			console.error(err);
-			const errMsg = String(err);
-			if (errMsg.includes('не найден') || errMsg.includes('not found') || errMsg.includes('LookPath')) {
-				ghCliModalTitle.textContent = 'Установите GitHub CLI';
-				ghCliModalMessage.innerHTML = `
-					Инструмент <strong>GitHub CLI (gh)</strong> не найден в вашей системе. Он необходим для безопасной синхронизации заметок.
-					<br><br>
-					<strong>Как установить:</strong>
-					<ol style="margin-weight: normal; margin-left: 20px; margin-top: 8px; margin-bottom: 8px;">
-						<li>Нажмите <strong>«Скачать GitHub CLI»</strong> ниже для загрузки официального установщика.</li>
-						<li>Установите программу, следуя стандартным инструкциям на экране.</li>
-						<li>После установки откройте командную строку/терминал и введите команду для входа:
-							<code style="background-color: var(--input-bg); padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px; font-family: monospace;">gh auth login</code>
-						</li>
-						<li>Следуйте инструкциям на экране консоли для входа.</li>
-					</ol>
-				`;
-				ghCliModal.classList.remove('hidden');
-			} else if (errMsg.includes('не авторизован') || errMsg.includes('not authorized') || errMsg.includes('unauthorized')) {
-				ghCliModalTitle.textContent = 'Авторизуйтесь в GitHub CLI';
-				ghCliModalMessage.innerHTML = `
-					Инструмент <strong>GitHub CLI (gh)</strong> установлен, но вы еще не вошли в свой аккаунт.
-					<br><br>
-					<strong>Как войти:</strong>
-					<ol style="margin-weight: normal; margin-left: 20px; margin-top: 8px; margin-bottom: 8px;">
-						<li>Откройте командную строку/терминал.</li>
-						<li>Введите команду для авторизации:
-							<br>
-							<code style="background-color: var(--input-bg); padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px; font-family: monospace; font-weight: bold;">gh auth login</code>
-						</li>
-						<li>Пройдите авторизацию в браузере согласно подсказкам в консоли.</li>
-						<li>После завершения вернитесь сюда и нажмите <strong>«Проверить снова»</strong>.</li>
-					</ol>
-				`;
-				ghCliModal.classList.remove('hidden');
-			} else {
-				alert('Ошибка подключения к GitHub CLI: ' + err);
-			}
-		} finally {
-			githubLoginBtn.classList.remove('disabled');
-			githubLoginBtn.innerHTML = originalText;
-		}
-	}
 
-	ghCliDownloadBtn.addEventListener('click', async () => {
-		try {
-			await OpenURL("https://cli.github.com/");
-		} catch (err) {
-			console.error(err);
-		}
-	});
-
-	ghCliCopyCmdBtn.addEventListener('click', () => {
-		navigator.clipboard.writeText("gh auth login").then(() => {
-			const prevText = ghCliCopyCmdBtn.textContent;
-			ghCliCopyCmdBtn.textContent = "Скопировано!";
-			setTimeout(() => {
-				ghCliCopyCmdBtn.textContent = prevText;
-			}, 2000);
-		});
-	});
-
-	ghCliCancelBtn.addEventListener('click', () => {
-		ghCliModal.classList.add('hidden');
-	});
-
-	ghCliRetryBtn.addEventListener('click', async () => {
-		ghCliModal.classList.add('hidden');
-		await handleGitHubCLIConnect();
-	});
-
-	githubLoginBtn.addEventListener('click', handleGitHubCLIConnect);
-
-	syncNowBtn.addEventListener('click', async () => {
-		syncNowBtn.classList.add('disabled');
-		const originalText = syncNowBtn.textContent;
-		syncNowBtn.textContent = 'Синхронизация...';
-		try {
-			await Sync();
-			alert('Синхронизация выполнена успешно!');
-			await loadData();
-		} catch (err) {
-			console.error(err);
-			alert('Ошибка синхронизации: ' + err);
-		} finally {
-			syncNowBtn.classList.remove('disabled');
-			syncNowBtn.textContent = originalText;
-		}
-	});
-
-	pullFromCloudBtn.addEventListener('click', async () => {
-		if (confirm('Внимание! Это действие заменит ВСЕ ваши локальные заметки и папки данными из облака. Продолжить?')) {
-			pullFromCloudBtn.classList.add('disabled');
-			const originalText = pullFromCloudBtn.textContent;
-			pullFromCloudBtn.textContent = 'Получение...';
-			try {
-				await PullFromCloud();
-				alert('Данные успешно загружены из облака!');
-				await loadData();
-			} catch (err) {
-				console.error(err);
-				alert('Ошибка получения данных: ' + err);
-			} finally {
-				pullFromCloudBtn.classList.remove('disabled');
-				pullFromCloudBtn.textContent = originalText;
-			}
-		}
-	});
-
-	forcePushToCloudBtn.addEventListener('click', async () => {
-		if (confirm('Внимание! Это действие перезапишет все данные в облаке вашим локальным состоянием. Продолжить?')) {
-			forcePushToCloudBtn.classList.add('disabled');
-			const originalText = forcePushToCloudBtn.textContent;
-			forcePushToCloudBtn.textContent = 'Отправка...';
-			try {
-				await ForcePushToCloud();
-				alert('Локальные данные успешно отправлены в облако!');
-			} catch (err) {
-				console.error(err);
-				alert('Ошибка отправки данных: ' + err);
-			} finally {
-				forcePushToCloudBtn.classList.remove('disabled');
-				forcePushToCloudBtn.textContent = originalText;
-			}
-		}
-	});
-
-	resetCloudDataBtn.addEventListener('click', async () => {
-		if (confirm('Опасное действие! Вы действительно хотите полностью УДАЛИТЬ все заметки и папки из облака? Локальные файлы останутся целы.')) {
-			resetCloudDataBtn.classList.add('disabled');
-			const originalText = resetCloudDataBtn.textContent;
-			resetCloudDataBtn.textContent = 'Сброс...';
-			try {
-				await ResetCloudData();
-				alert('Данные в облаке успешно удалены!');
-			} catch (err) {
-				console.error(err);
-				alert('Ошибка удаления данных из облака: ' + err);
-			} finally {
-				resetCloudDataBtn.classList.remove('disabled');
-				resetCloudDataBtn.textContent = originalText;
-			}
-		}
-	});
-
-	syncLogoutBtn.addEventListener('click', async () => {
-		if (confirm('Вы уверены, что хотите отключить синхронизацию GitHub? Это очистит учетные данные.')) {
-			try {
-				await SaveSyncConfig({
-					remote_url: '',
-					username: '',
-					email: '',
-					token: ''
-				});
-				await updateSyncUI();
-				alert('Синхронизация отключена.');
-			} catch (err) {
-				console.error(err);
-				alert('Ошибка: ' + err);
-			}
-		}
-	});
 
 	let passwordAction: 'enable' | 'disable' | 'change' = 'enable';
 
@@ -1330,22 +1094,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		}
 	});
 
-	syncBtn.addEventListener('click', async () => {
-		syncBtn.classList.add('disabled');
-		const originalSvg = syncBtn.innerHTML;
-		syncBtn.innerHTML = '...';
-		try {
-			await Sync();
-			alert('Синхронизация успешна!');
-			await loadData();
-		} catch (err) {
-			console.error(err);
-			alert('Ошибка синхронизации: ' + err);
-		} finally {
-			syncBtn.classList.remove('disabled');
-			syncBtn.innerHTML = originalSvg;
-		}
-	});
+
 
 	settingsThemeSelect.addEventListener('change', () => {
 		const val = settingsThemeSelect.value;
