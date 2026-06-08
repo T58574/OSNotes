@@ -17,3 +17,6 @@ config.json
 wails.json.user
 .idea/
 .vscode/
+.agent/
+GEMINI.md
+
