@@ -1,14 +1,11 @@
-/* --- iOS Notes CSS Styles --- */
-
 :root {
-    /* Светлая тема по умолчанию */
     --bg-primary: #f2f2f7;
     --bg-secondary: #ffffff;
     --bg-tertiary: #e5e5ea;
     --bg-active: #e4e4eb;
     --text-primary: #000000;
     --text-secondary: #8e8e93;
-    --accent: #e4a11b; /* Apple Notes Gold */
+    --accent: #e4a11b;
     --accent-rgb: 228, 161, 27;
     --border-color: rgba(0, 0, 0, 0.08);
     --input-bg: rgba(0, 0, 0, 0.05);
@@ -17,12 +14,10 @@
     --shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
     --alert-bg: rgba(255, 255, 255, 0.9);
     --btn-active-bg: rgba(0, 0, 0, 0.05);
-    
     --font-stack: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     --transition-speed: 0.3s;
 }
 
-/* Автоматическая темная тема или через класс .dark-theme */
 @media (prefers-color-scheme: dark) {
     :root:not(.light-theme) {
         --bg-primary: #000000;
@@ -73,7 +68,6 @@
     --btn-active-bg: rgba(0, 0, 0, 0.05);
 }
 
-/* --- Базовые Стили --- */
 * {
     box-sizing: border-box;
     margin: 0;
@@ -93,7 +87,6 @@ body, html {
     -webkit-font-smoothing: antialiased;
 }
 
-/* Иконки */
 .icon {
     width: 20px;
     height: 20px;
@@ -115,7 +108,6 @@ body, html {
     display: none !important;
 }
 
-/* --- Контейнер Приложения --- */
 .ios-notes-app {
     display: flex;
     height: 100%;
@@ -125,7 +117,6 @@ body, html {
     overflow: hidden;
 }
 
-/* Общий стиль для Панелей */
 .panel {
     display: flex;
     flex-direction: column;
@@ -138,28 +129,24 @@ body, html {
                 opacity var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Панель 1: Папки */
 .folders-panel {
     width: 260px;
     flex-shrink: 0;
     background-color: var(--bg-primary);
 }
 
-/* Панель 2: Список заметок */
 .notes-panel {
     width: 320px;
     flex-shrink: 0;
     background-color: var(--bg-secondary);
 }
 
-/* Панель 3: Редактор */
 .editor-panel {
     flex-grow: 1;
     background-color: var(--bg-secondary);
     border-right: none;
 }
 
-/* --- Заголовки Панелей (Header) --- */
 .panel-header {
     height: 52px;
     padding: 0 16px;
@@ -239,7 +226,6 @@ body, html {
     margin-right: -4px;
 }
 
-/* --- Подвалы Панелей (Footer) --- */
 .panel-footer {
     height: 48px;
     padding: 0 16px;
@@ -288,7 +274,6 @@ body, html {
     background-color: var(--btn-active-bg);
 }
 
-/* --- Панель Поиска --- */
 .search-container {
     padding: 8px 16px 12px 16px;
     background-color: transparent;
@@ -367,7 +352,6 @@ body, html {
     to { transform: translateX(0); opacity: 1; }
 }
 
-/* --- Стили для Панели 1: Папки --- */
 .folders-list-wrapper {
     flex-grow: 1;
     overflow-y: auto;
@@ -390,7 +374,6 @@ body, html {
     overflow: hidden;
     border: 1px solid var(--border-color);
     margin-bottom: 20px;
-    box-shadow: var(--card-shadow);
 }
 
 .folder-item {
@@ -452,7 +435,6 @@ body, html {
     opacity: 0.5;
 }
 
-/* Контекстные действия для кастомных папок при удерживании (демонстрируем кнопкой удаления) */
 .delete-folder-inline {
     background: none;
     border: none;
@@ -468,7 +450,6 @@ body, html {
     opacity: 1;
 }
 
-/* --- Стили для Панели 2: Список заметок --- */
 .notes-list-container {
     flex-grow: 1;
     overflow-y: auto;
@@ -495,7 +476,6 @@ body, html {
     border-radius: 12px;
     overflow: hidden;
     border: 1px solid var(--border-color);
-    box-shadow: var(--card-shadow);
 }
 
 .note-item {
@@ -582,7 +562,6 @@ body, html {
     font-weight: 500;
 }
 
-/* --- Стили для Панели 3: Редактор заметок --- */
 .editor-header-actions-left, .editor-header-actions-right {
     display: flex;
     align-items: center;
@@ -625,7 +604,6 @@ body, html {
     min-height: 300px;
 }
 
-/* Стилизация HTML внутри contenteditable */
 .editor-body h1 {
     font-size: 1.8rem;
     font-weight: 700;
@@ -675,7 +653,6 @@ body, html {
     border: 1px solid var(--border-color);
 }
 
-/* placeholder для contenteditable */
 .editor-body:empty::before {
     content: attr(data-placeholder);
     color: var(--text-secondary);
@@ -684,7 +661,6 @@ body, html {
     position: absolute;
 }
 
-/* --- iOS Стиль Чек-листа (Todo) --- */
 .todo-item {
     display: flex;
     align-items: flex-start;
@@ -742,7 +718,6 @@ body, html {
     text-decoration: line-through;
 }
 
-/* --- Всплывающая панель форматирования (Format Popup) --- */
 .format-popup {
     position: absolute;
     bottom: 60px;
@@ -863,7 +838,6 @@ body, html {
     fill: currentColor;
 }
 
-/* --- iOS модальные окна (Alert / Action Sheet) --- */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -885,7 +859,6 @@ body, html {
     to { opacity: 1; }
 }
 
-/* iOS Alert Box */
 .ios-alert {
     background-color: var(--alert-bg);
     border-radius: 14px;
@@ -896,6 +869,10 @@ body, html {
     align-items: center;
     overflow: hidden;
     animation: popIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.settings-alert {
+    width: 320px;
 }
 
 @keyframes popIn {
@@ -923,6 +900,9 @@ body, html {
 .ios-alert .alert-input-wrapper {
     width: 100%;
     padding: 0 16px 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .ios-alert .alert-input-wrapper input {
@@ -974,7 +954,6 @@ body, html {
     color: #ff3b30;
 }
 
-/* iOS Action Sheet */
 .ios-action-sheet {
     background-color: var(--alert-bg);
     border-radius: 14px;
@@ -1058,9 +1037,6 @@ body, html {
     background-color: var(--bg-active);
 }
 
-/* --- Адаптивность и Переключатель Экранов на Мобильных (Responsive) --- */
-
-/* Десктопная и Планшетная версия: 3 колонки */
 @media (min-width: 1024px) {
     .folders-panel {
         width: 260px;
@@ -1076,17 +1052,14 @@ body, html {
         display: flex !important;
     }
     
-    /* Скрываем кнопки назад на десктопе */
     .panel-header .back-btn {
         display: none !important;
     }
     
-    /* Кнопка скрытия боковых панелей видна */
     #toggleSidebarsBtn {
         display: flex;
     }
     
-    /* Состояние скрытых боковых колонок на десктопе */
     .ios-notes-app.folders-hidden .folders-panel {
         width: 0;
         opacity: 0;
@@ -1102,7 +1075,6 @@ body, html {
     }
 }
 
-/* Средние экраны (планшеты): 2 колонки */
 @media (min-width: 768px) and (max-width: 1023px) {
     .folders-panel {
         width: 220px;
@@ -1121,7 +1093,6 @@ body, html {
     }
 }
 
-/* Мобильная версия (смартфоны): Скользящие панели во весь экран */
 @media (max-width: 767px) {
     .ios-notes-app {
         width: 300%;
@@ -1129,24 +1100,20 @@ body, html {
         transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
     
-    /* Каждая панель занимает ровно 1/3 всей ширины (100% ширины экрана) */
     .panel {
         width: 33.333% !important;
         flex-shrink: 0;
         border-right: none;
     }
     
-    /* Скрываем кнопку скрытия панелей */
     #toggleSidebarsBtn {
         display: none !important;
     }
     
-    /* Показываем кнопки "Назад" */
     .panel-header .back-btn {
         display: flex !important;
     }
     
-    /* Состояния навигации для мобильных */
     .ios-notes-app.view-folders {
         transform: translateX(0);
     }
@@ -1159,7 +1126,6 @@ body, html {
         transform: translateX(-66.666%);
     }
     
-    /* Оформление в мобильной версии */
     .editor-content-wrapper {
         padding: 16px 20px;
     }
@@ -1168,7 +1134,6 @@ body, html {
         background-color: var(--bg-primary);
     }
     
-    /* Кнопки и списки на мобильном немного крупнее для тач-интерфейса */
     .folder-item {
         padding: 14px 16px;
     }
@@ -1178,7 +1143,6 @@ body, html {
     }
 }
 
-/* --- Стилизация скроллбаров --- */
 ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -1197,7 +1161,6 @@ body, html {
     background: var(--text-secondary);
 }
 
-/* --- Стили для HTML-просмотрщика и редактора кода --- */
 .ios-html-preview {
     background-color: var(--bg-secondary);
     width: 90%;
@@ -1234,24 +1197,20 @@ body, html {
     background-color: #ffffff;
 }
 
-/* Кнопка режима кода в активном состоянии */
 .header-btn-icon.active {
     background-color: var(--accent) !important;
     color: #ffffff !important;
 }
 
-/* Стили для редактора в режиме кода */
 .editor-body.code-mode-active {
     font-family: Menlo, Monaco, Consolas, "Courier New", monospace !important;
     font-size: 0.95rem !important;
     white-space: pre-wrap !important;
     word-break: break-all !important;
     line-height: 1.5 !important;
-    color: #85c200 !important; /* Отличительный цвет для кода, похожий на iOS */
+    color: #85c200 !important;
 }
 
-/* Принудительная тема для кода в темном режиме */
 .dark-theme .editor-body.code-mode-active {
     color: #62c3e4 !important;
 }
-
