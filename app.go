@@ -22,6 +22,7 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	gitconfig "github.com/go-git/go-git/v5/config"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type SyncConfig struct {
@@ -518,4 +519,8 @@ func copyDirectory(src, dst string) {
 		}
 		return ioutil.WriteFile(target, data, info.Mode())
 	})
+}
+
+func (a *App) OpenURL(urlStr string) {
+	runtime.BrowserOpenURL(a.ctx, urlStr)
 }

@@ -17,7 +17,8 @@ import {
 	IsPasswordEnabled,
 	AutoUnlockIfNeeded,
 	SetPasswordEnabled,
-	ConnectWithGitHubCLI
+	ConnectWithGitHubCLI,
+	OpenURL
 } from '../wailsjs/go/main/App';
 
 interface Folder {
@@ -118,6 +119,14 @@ document.addEventListener('DOMContentLoaded', () => {
 	const syncUserText = document.getElementById('syncUserText') as HTMLElement;
 	const syncNowBtn = document.getElementById('syncNowBtn') as HTMLElement;
 	const syncLogoutBtn = document.getElementById('syncLogoutBtn') as HTMLElement;
+
+	const ghCliModal = document.getElementById('ghCliModal') as HTMLElement;
+	const ghCliModalTitle = document.getElementById('ghCliModalTitle') as HTMLElement;
+	const ghCliModalMessage = document.getElementById('ghCliModalMessage') as HTMLElement;
+	const ghCliDownloadBtn = document.getElementById('ghCliDownloadBtn') as HTMLElement;
+	const ghCliCopyCmdBtn = document.getElementById('ghCliCopyCmdBtn') as HTMLElement;
+	const ghCliCancelBtn = document.getElementById('ghCliCancelBtn') as HTMLElement;
+	const ghCliRetryBtn = document.getElementById('ghCliRetryBtn') as HTMLElement;
 
 
 	const settingsThemeSelect = document.getElementById('settingsThemeSelect') as HTMLSelectElement;
@@ -1001,7 +1010,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		settingsModal.classList.add('hidden');
 	});
 
-	githubLoginBtn.addEventListener('click', async () => {
+	async function handleGitHubCLIConnect() {
 		githubLoginBtn.classList.add('disabled');
 		const originalText = githubLoginBtn.innerHTML;
 		githubLoginBtn.innerHTML = '<span>Ожидание авторизации...</span>';
@@ -1014,12 +1023,77 @@ document.addEventListener('DOMContentLoaded', () => {
 			}
 		} catch (err) {
 			console.error(err);
-			alert('Ошибка авторизации: ' + err);
+			const errMsg = String(err);
+			if (errMsg.includes('не найден') || errMsg.includes('not found') || errMsg.includes('LookPath')) {
+				ghCliModalTitle.textContent = 'Установите GitHub CLI';
+				ghCliModalMessage.innerHTML = `
+					Инструмент <strong>GitHub CLI (gh)</strong> не найден в вашей системе. Он необходим для безопасной синхронизации заметок.
+					<br><br>
+					<strong>Как установить:</strong>
+					<ol style="margin-weight: normal; margin-left: 20px; margin-top: 8px; margin-bottom: 8px;">
+						<li>Нажмите <strong>«Скачать GitHub CLI»</strong> ниже для загрузки официального установщика.</li>
+						<li>Установите программу, следуя стандартным инструкциям на экране.</li>
+						<li>После установки откройте командную строку/терминал и введите команду для входа:
+							<code style="background-color: var(--input-bg); padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px; font-family: monospace;">gh auth login</code>
+						</li>
+						<li>Следуйте инструкциям на экране консоли для входа.</li>
+					</ol>
+				`;
+				ghCliModal.classList.remove('hidden');
+			} else if (errMsg.includes('не авторизован') || errMsg.includes('not authorized') || errMsg.includes('unauthorized')) {
+				ghCliModalTitle.textContent = 'Авторизуйтесь в GitHub CLI';
+				ghCliModalMessage.innerHTML = `
+					Инструмент <strong>GitHub CLI (gh)</strong> установлен, но вы еще не вошли в свой аккаунт.
+					<br><br>
+					<strong>Как войти:</strong>
+					<ol style="margin-weight: normal; margin-left: 20px; margin-top: 8px; margin-bottom: 8px;">
+						<li>Откройте командную строку/терминал.</li>
+						<li>Введите команду для авторизации:
+							<br>
+							<code style="background-color: var(--input-bg); padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px; font-family: monospace; font-weight: bold;">gh auth login</code>
+						</li>
+						<li>Пройдите авторизацию в браузере согласно подсказкам в консоли.</li>
+						<li>После завершения вернитесь сюда и нажмите <strong>«Проверить снова»</strong>.</li>
+					</ol>
+				`;
+				ghCliModal.classList.remove('hidden');
+			} else {
+				alert('Ошибка подключения к GitHub CLI: ' + err);
+			}
 		} finally {
 			githubLoginBtn.classList.remove('disabled');
 			githubLoginBtn.innerHTML = originalText;
 		}
+	}
+
+	ghCliDownloadBtn.addEventListener('click', async () => {
+		try {
+			await OpenURL("https://cli.github.com/");
+		} catch (err) {
+			console.error(err);
+		}
 	});
+
+	ghCliCopyCmdBtn.addEventListener('click', () => {
+		navigator.clipboard.writeText("gh auth login").then(() => {
+			const prevText = ghCliCopyCmdBtn.textContent;
+			ghCliCopyCmdBtn.textContent = "Скопировано!";
+			setTimeout(() => {
+				ghCliCopyCmdBtn.textContent = prevText;
+			}, 2000);
+		});
+	});
+
+	ghCliCancelBtn.addEventListener('click', () => {
+		ghCliModal.classList.add('hidden');
+	});
+
+	ghCliRetryBtn.addEventListener('click', async () => {
+		ghCliModal.classList.add('hidden');
+		await handleGitHubCLIConnect();
+	});
+
+	githubLoginBtn.addEventListener('click', handleGitHubCLIConnect);
 
 	syncNowBtn.addEventListener('click', async () => {
 		syncNowBtn.classList.add('disabled');

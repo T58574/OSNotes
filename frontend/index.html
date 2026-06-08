@@ -350,6 +350,38 @@
         </div>
     </div>
 
+    <!-- Модальное окно помощи по GitHub CLI -->
+    <div class="modal-overlay hidden" id="ghCliModal">
+        <div class="ios-alert" style="width: 320px;">
+            <div class="alert-title" id="ghCliModalTitle">GitHub CLI не найден</div>
+            <div class="alert-message" id="ghCliModalMessage" style="text-align: left; padding: 0 20px; font-size: 0.85rem; line-height: 1.4;">
+                Инструмент <strong>GitHub CLI (gh)</strong> необходим для безопасной синхронизации ваших заметок.
+                <br><br>
+                <strong>Что делать:</strong>
+                <ol style="margin-left: 20px; margin-top: 8px; margin-bottom: 8px;">
+                    <li>Нажмите кнопку ниже для скачивания установщика.</li>
+                    <li>Установите программу, следуя подсказкам на экране.</li>
+                    <li>Откройте терминал (консоль) и введите команду:<br>
+                        <code style="background-color: var(--input-bg); padding: 2px 4px; border-radius: 4px; display: inline-block; margin-top: 4px; font-family: monospace;">gh auth login</code>
+                    </li>
+                    <li>Следуйте инструкциям в терминале для авторизации.</li>
+                </ol>
+            </div>
+            <div class="alert-input-wrapper" style="padding: 0 16px 16px 16px;">
+                <button class="settings-action-btn-inline font-semibold" id="ghCliDownloadBtn" style="color: #007aff; background-color: var(--input-bg); border-radius: 8px; padding: 10px; margin-bottom: 8px; display: block; width: 100%;">
+                    Скачать GitHub CLI
+                </button>
+                <button class="settings-action-btn-inline" id="ghCliCopyCmdBtn" style="color: var(--text-primary); background-color: var(--input-bg); border-radius: 8px; padding: 10px; display: block; width: 100%; font-size: 0.85rem;">
+                    Скопировать команду авторизации
+                </button>
+            </div>
+            <div class="alert-actions">
+                <button class="alert-action-btn cancel" id="ghCliCancelBtn">Отмена</button>
+                <button class="alert-action-btn confirm" id="ghCliRetryBtn">Проверить снова</button>
+            </div>
+        </div>
+    </div>
+
     <script src="./src/main.ts" type="module"></script>
 </body>
 </html>
