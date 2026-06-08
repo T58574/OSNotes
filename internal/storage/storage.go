@@ -75,6 +75,12 @@ func (sm *StorageManager) loadMeta() error {
 	return json.Unmarshal(data, &sm.meta)
 }
 
+func (sm *StorageManager) Reload() error {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	return sm.loadMeta()
+}
+
 func (sm *StorageManager) saveMeta() error {
 	path := filepath.Join(sm.baseDir, "meta.json")
 	tempPath := path + ".tmp"

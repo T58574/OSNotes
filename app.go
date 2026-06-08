@@ -335,11 +335,11 @@ func (a *App) Sync() error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.storage == nil {
-		return errors.New("locked")
+		return errors.New("заметки заблокированы (locked)")
 	}
 	cfg := a.config.SyncConfig
 	if cfg.RemoteURL == "" || cfg.Token == "" {
-		return errors.New("sync credentials missing")
+		return errors.New("настройки синхронизации отсутствуют (credentials missing)")
 	}
 	gitCfg := gitsync.GitConfig{
 		LocalPath: a.repoDir,
@@ -352,17 +352,17 @@ func (a *App) Sync() error {
 	if os.IsNotExist(err) {
 		err = a.syncManager.Clone(context.Background(), gitCfg)
 		if err != nil {
-			return err
+			return fmt.Errorf("ошибка клонирования репозитория: %w", err)
 		}
 	} else {
-		_, err = a.syncManager.Pull(context.Background(), gitCfg)
+		err = a.syncManager.SafeSync(context.Background(), gitCfg, "sync notes "+time.Now().Format(time.RFC3339))
 		if err != nil {
-			return err
+			return fmt.Errorf("ошибка синхронизации изменений: %w", err)
 		}
 	}
-	err = a.syncManager.CommitAndPush(context.Background(), gitCfg, "sync notes "+time.Now().Format(time.RFC3339))
+	err = a.storage.Reload()
 	if err != nil {
-		return err
+		return fmt.Errorf("ошибка перезагрузки кэша заметок: %w", err)
 	}
 	return nil
 }
