@@ -450,6 +450,27 @@ body, html {
     opacity: 1;
 }
 
+.notes-sort-select {
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--accent);
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+    appearance: none;
+    -webkit-appearance: none;
+    text-align: right;
+}
+
+.notes-sort-select:hover {
+    background-color: var(--btn-active-bg);
+}
+
 .notes-list-container {
     flex-grow: 1;
     overflow-y: auto;
@@ -479,7 +500,7 @@ body, html {
 }
 
 .note-item {
-    padding: 12px 16px;
+    padding: 12px 36px 12px 16px;
     border-bottom: 1px solid var(--border-color);
     cursor: pointer;
     transition: background-color 0.15s;
@@ -488,6 +509,29 @@ body, html {
     gap: 4px;
     position: relative;
     overflow: hidden;
+}
+
+.delete-note-inline {
+    background: none;
+    border: none;
+    color: #ff3b30;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+}
+
+.note-item:hover .delete-note-inline {
+    opacity: 1;
 }
 
 .note-item:last-child {

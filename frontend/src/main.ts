@@ -59,15 +59,16 @@ document.addEventListener('DOMContentLoaded', () => {
 	const themeToggleBtn = document.getElementById('themeToggleBtn') as HTMLElement;
 	const newFolderBtn = document.getElementById('newFolderBtn') as HTMLElement;
 	const newNoteBtn = document.getElementById('newNoteBtn') as HTMLElement;
-	const deleteNoteBtn = document.getElementById('deleteNoteBtn') as HTMLElement;
-	const shareBtn = document.getElementById('shareBtn') as HTMLElement;
-	const formatBtn = document.getElementById('formatBtn') as HTMLElement;
-	const checklistBtn = document.getElementById('checklistBtn') as HTMLElement;
-	const toggleSidebarsBtn = document.getElementById('toggleSidebarsBtn') as HTMLElement;
-	const doneBtn = document.getElementById('doneBtn') as HTMLElement;
+	const deleteNoteBtn = document.getElementById('deleteNoteBtn') as HTMLElement | null;
+	const shareBtn = document.getElementById('shareBtn') as HTMLElement | null;
+	const formatBtn = document.getElementById('formatBtn') as HTMLElement | null;
+	const checklistBtn = document.getElementById('checklistBtn') as HTMLElement | null;
+	const toggleSidebarsBtn = document.getElementById('toggleSidebarsBtn') as HTMLElement | null;
+	const doneBtn = document.getElementById('doneBtn') as HTMLElement | null;
 
-	const codeModeBtn = document.getElementById('codeModeBtn') as HTMLElement;
-	const runHtmlBtn = document.getElementById('runHtmlBtn') as HTMLElement;
+	const codeModeBtn = document.getElementById('codeModeBtn') as HTMLElement | null;
+	const runHtmlBtn = document.getElementById('runHtmlBtn') as HTMLElement | null;
+	const notesSortSelect = document.getElementById('notesSortSelect') as HTMLSelectElement;
 
 	const htmlRunnerModal = document.getElementById('htmlRunnerModal') as HTMLElement;
 	const closeHtmlRunnerBtn = document.getElementById('closeHtmlRunnerBtn') as HTMLElement;
@@ -311,6 +312,9 @@ document.addEventListener('DOMContentLoaded', () => {
 		notesList.classList.remove('hidden');
 
 		const sortOrder = localStorage.getItem('ios-notes-sort') || 'updated';
+		if (notesSortSelect) {
+			notesSortSelect.value = sortOrder;
+		}
 		if (sortOrder === 'updated') {
 			filteredNotes.sort((a, b) => b.updated_at - a.updated_at);
 		} else if (sortOrder === 'created') {
@@ -347,6 +351,10 @@ document.addEventListener('DOMContentLoaded', () => {
 					? `<span class="note-item-folder">${getFolderName(note.folder_id)}</span>`
 					: '';
 
+				const deleteBtnHtml = `<button class="delete-note-inline" data-id="${note.id}" title="Удалить заметку">
+					<svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:currentColor;"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+				</button>`;
+
 				noteItem.innerHTML = `
 					<div class="note-item-title">${note.title || 'Новая заметка'}</div>
 					<div class="note-item-meta">
@@ -354,9 +362,19 @@ document.addEventListener('DOMContentLoaded', () => {
 						<span class="note-item-snippet">Открыть для просмотра</span>
 					</div>
 					${folderTag}
+					${deleteBtnHtml}
 				`;
 
-				noteItem.addEventListener('click', () => {
+				noteItem.addEventListener('click', (e) => {
+					const target = e.target as HTMLElement;
+					if (target.closest('.delete-note-inline')) {
+						e.stopPropagation();
+						const id = (target.closest('.delete-note-inline') as HTMLElement).dataset.id;
+						if (id) {
+							deleteNoteById(id);
+						}
+						return;
+					}
 					selectNote(note.id);
 				});
 
@@ -471,7 +489,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			setCodeMode(false);
 			editorBody.innerHTML = content || '<h1>Новая заметка</h1><p><br></p>';
 			editorMeta.textContent = formatNoteDateFull(note.updated_at);
-			doneBtn.classList.add('hidden');
+			doneBtn?.classList.add('hidden');
 			setMobileView('editor');
 		} catch (err) {
 			console.error(err);
@@ -486,6 +504,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 		if (filteredNotes.length > 0) {
 			const sortOrder = localStorage.getItem('ios-notes-sort') || 'updated';
+			if (notesSortSelect) {
+				notesSortSelect.value = sortOrder;
+			}
 			if (sortOrder === 'updated') {
 				filteredNotes.sort((a, b) => b.updated_at - a.updated_at);
 			} else if (sortOrder === 'created') {
@@ -503,7 +524,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		currentNoteId = null;
 		editorBody.innerHTML = '';
 		editorMeta.textContent = 'Нет заметок';
-		doneBtn.classList.add('hidden');
+		doneBtn?.classList.add('hidden');
 	}
 
 	function setCodeMode(enabled: boolean) {
@@ -511,21 +532,21 @@ document.addEventListener('DOMContentLoaded', () => {
 		if (!currentNoteId) return;
 
 		if (isCodeMode) {
-			codeModeBtn.classList.add('active');
+			codeModeBtn?.classList.add('active');
 			editorBody.classList.add('code-mode-active');
 			const note = notes.find(n => n.id === currentNoteId);
 			if (note) {
 				editorBody.innerText = editorBody.innerHTML;
 			}
-			formatBtn.classList.add('hidden');
-			checklistBtn.classList.add('hidden');
+			formatBtn?.classList.add('hidden');
+			checklistBtn?.classList.add('hidden');
 		} else {
-			codeModeBtn.classList.remove('active');
+			codeModeBtn?.classList.remove('active');
 			editorBody.classList.remove('code-mode-active');
 			const code = editorBody.innerText;
 			editorBody.innerHTML = code;
-			formatBtn.classList.remove('hidden');
-			checklistBtn.classList.remove('hidden');
+			formatBtn?.classList.remove('hidden');
+			checklistBtn?.classList.remove('hidden');
 		}
 	}
 
@@ -592,7 +613,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	function triggerAutoSave() {
 		if (!currentNoteId) return;
 
-		doneBtn.classList.remove('hidden');
+		doneBtn?.classList.remove('hidden');
 
 		let htmlContent = isCodeMode ? editorBody.innerText : editorBody.innerHTML;
 
@@ -681,7 +702,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 		try {
 			await SaveNote(currentNoteId, folderId, titleText, htmlContent);
-			doneBtn.classList.add('hidden');
+			doneBtn?.classList.add('hidden');
 			await loadData();
 		} catch (err) {
 			console.error(err);
@@ -700,6 +721,35 @@ document.addEventListener('DOMContentLoaded', () => {
 			renderNotesList();
 			selectFirstNote();
 			if (window.innerWidth < 768) {
+				setMobileView('notes');
+			}
+		} catch (err) {
+			console.error(err);
+		}
+	}
+
+	async function deleteNoteById(noteId: string) {
+		try {
+			await DeleteNote(noteId);
+			notes = notes.filter(n => n.id !== noteId);
+			if (currentNoteId === noteId) {
+				currentNoteId = null;
+			}
+			updateFolderCounts();
+			renderFolders();
+			renderNotesList();
+			if (!currentNoteId) {
+				selectFirstNote();
+			} else {
+				const stillExists = notes.find(n => n.id === currentNoteId);
+				if (!stillExists) {
+					selectFirstNote();
+				} else {
+					const activeItem = notesList.querySelector(`.note-item[data-id="${currentNoteId}"]`);
+					if (activeItem) activeItem.classList.add('active');
+				}
+			}
+			if (window.innerWidth < 768 && !currentNoteId) {
 				setMobileView('notes');
 			}
 		} catch (err) {
@@ -781,21 +831,25 @@ document.addEventListener('DOMContentLoaded', () => {
 	});
 
 	newNoteBtn.addEventListener('click', createNewNote);
-	deleteNoteBtn.addEventListener('click', deleteCurrentNote);
+	if (deleteNoteBtn) deleteNoteBtn.addEventListener('click', deleteCurrentNote);
 
 	editorBody.addEventListener('input', triggerAutoSave);
-	doneBtn.addEventListener('click', forceSave);
+	if (doneBtn) doneBtn.addEventListener('click', forceSave);
 
-	codeModeBtn.addEventListener('click', () => {
-		setCodeMode(!isCodeMode);
-	});
+	if (codeModeBtn) {
+		codeModeBtn.addEventListener('click', () => {
+			setCodeMode(!isCodeMode);
+		});
+	}
 
-	runHtmlBtn.addEventListener('click', () => {
-		if (!currentNoteId) return;
-		let htmlContent = isCodeMode ? editorBody.innerText : editorBody.innerHTML;
-		htmlRunnerModal.classList.remove('hidden');
-		htmlPreviewIframe.srcdoc = htmlContent;
-	});
+	if (runHtmlBtn) {
+		runHtmlBtn.addEventListener('click', () => {
+			if (!currentNoteId) return;
+			let htmlContent = isCodeMode ? editorBody.innerText : editorBody.innerHTML;
+			htmlRunnerModal.classList.remove('hidden');
+			htmlPreviewIframe.srcdoc = htmlContent;
+		});
+	}
 
 	closeHtmlRunnerBtn.addEventListener('click', () => {
 		htmlRunnerModal.classList.add('hidden');
@@ -807,10 +861,12 @@ document.addEventListener('DOMContentLoaded', () => {
 		htmlPreviewIframe.srcdoc = htmlContent;
 	});
 
-	shareBtn.addEventListener('click', () => {
-		if (!currentNoteId) return;
-		shareModal.classList.remove('hidden');
-	});
+	if (shareBtn) {
+		shareBtn.addEventListener('click', () => {
+			if (!currentNoteId) return;
+			shareModal.classList.remove('hidden');
+		});
+	}
 
 	cancelShareBtn.addEventListener('click', () => {
 		shareModal.classList.add('hidden');
@@ -838,15 +894,17 @@ document.addEventListener('DOMContentLoaded', () => {
 		shareModal.classList.add('hidden');
 	});
 
-	formatBtn.addEventListener('click', (e) => {
-		e.stopPropagation();
-		formatPopup.classList.toggle('hidden');
-		if (!formatPopup.classList.contains('hidden')) {
-			const rect = formatBtn.getBoundingClientRect();
-			formatPopup.style.right = `${window.innerWidth - rect.right}px`;
-			formatPopup.style.bottom = `${window.innerHeight - rect.top + 8}px`;
-		}
-	});
+	if (formatBtn) {
+		formatBtn.addEventListener('click', (e) => {
+			e.stopPropagation();
+			formatPopup.classList.toggle('hidden');
+			if (!formatPopup.classList.contains('hidden')) {
+				const rect = formatBtn.getBoundingClientRect();
+				formatPopup.style.right = `${window.innerWidth - rect.right}px`;
+				formatPopup.style.bottom = `${window.innerHeight - rect.top + 8}px`;
+			}
+		});
+	}
 
 	document.addEventListener('click', (e) => {
 		if (!formatPopup.classList.contains('hidden') && !formatPopup.contains(e.target as Node)) {
@@ -891,11 +949,24 @@ document.addEventListener('DOMContentLoaded', () => {
 		});
 	});
 
-	checklistBtn.addEventListener('click', () => {
-		if (isCodeMode) return;
-		document.execCommand('insertHTML', false, '<div class="todo-item"><span class="todo-checkbox" contenteditable="false"></span><span class="todo-text" contenteditable="true">&nbsp;</span></div>');
-		triggerAutoSave();
-	});
+	if (checklistBtn) {
+		checklistBtn.addEventListener('click', () => {
+			if (isCodeMode) return;
+			document.execCommand('insertHTML', false, '<div class="todo-item"><span class="todo-checkbox" contenteditable="false"></span><span class="todo-text" contenteditable="true">&nbsp;</span></div>');
+			triggerAutoSave();
+		});
+	}
+
+	if (notesSortSelect) {
+		notesSortSelect.addEventListener('change', () => {
+			const val = notesSortSelect.value;
+			localStorage.setItem('ios-notes-sort', val);
+			if (settingsSortSelect) {
+				settingsSortSelect.value = val;
+			}
+			renderNotesList();
+		});
+	}
 
 	editorBody.addEventListener('click', (e) => {
 		const target = e.target as HTMLElement;
@@ -1107,7 +1178,11 @@ document.addEventListener('DOMContentLoaded', () => {
 	});
 
 	settingsSortSelect.addEventListener('change', () => {
-		localStorage.setItem('ios-notes-sort', settingsSortSelect.value);
+		const val = settingsSortSelect.value;
+		localStorage.setItem('ios-notes-sort', val);
+		if (notesSortSelect) {
+			notesSortSelect.value = val;
+		}
 		renderNotesList();
 	});
 
@@ -1181,18 +1256,20 @@ document.addEventListener('DOMContentLoaded', () => {
 		}
 	}
 
-	toggleSidebarsBtn.addEventListener('click', () => {
-		const isFoldersHidden = appContainer.classList.contains('folders-hidden');
-		const isNotesHidden = appContainer.classList.contains('notes-hidden');
+	if (toggleSidebarsBtn) {
+		toggleSidebarsBtn.addEventListener('click', () => {
+			const isFoldersHidden = appContainer.classList.contains('folders-hidden');
+			const isNotesHidden = appContainer.classList.contains('notes-hidden');
 
-		if (!isFoldersHidden && !isNotesHidden) {
-			appContainer.classList.add('folders-hidden');
-		} else if (isFoldersHidden && !isNotesHidden) {
-			appContainer.classList.add('notes-hidden');
-		} else {
-			appContainer.classList.remove('folders-hidden', 'notes-hidden');
-		}
-	});
+			if (!isFoldersHidden && !isNotesHidden) {
+				appContainer.classList.add('folders-hidden');
+			} else if (isFoldersHidden && !isNotesHidden) {
+				appContainer.classList.add('notes-hidden');
+			} else {
+				appContainer.classList.remove('folders-hidden', 'notes-hidden');
+			}
+		});
+	}
 
 	initTheme();
 	initAccentColors();
