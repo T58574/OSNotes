@@ -187,8 +187,14 @@ func (m *GitSyncManager) SafeSync(ctx context.Context, cfg GitConfig, message st
 	}
 	localMetaBytes, err := ioutil.ReadFile(filepath.Join(cfg.LocalPath, "meta.json"))
 	var localMeta storage.MetaData
-	if err == nil {
-		_ = json.Unmarshal(localMetaBytes, &localMeta)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("ошибка чтения локального meta.json: %w", err)
+		}
+	} else {
+		if err := json.Unmarshal(localMetaBytes, &localMeta); err != nil {
+			return fmt.Errorf("ошибка разбора локального meta.json: %w", err)
+		}
 	}
 	var remoteMeta storage.MetaData
 	hasRemoteMeta := false
@@ -246,47 +252,55 @@ func (m *GitSyncManager) SafeSync(ctx context.Context, cfg GitConfig, message st
 		Content []byte
 	}
 	var filesToWrite []fileToSave
-	if hasRemoteMeta && remoteCommit != nil {
-		remoteTree, err := remoteCommit.Tree()
-		if err == nil {
-			for _, n := range mergedNotes {
-				var localNoteHas bool
-				var localNoteUpdated int64
-				for _, ln := range localMeta.Notes {
-					if ln.ID == n.ID {
-						localNoteHas = true
-						localNoteUpdated = ln.UpdatedAt
-						break
-					}
-				}
-				needRemoteCopy := false
-				if !localNoteHas {
-					needRemoteCopy = true
-				} else {
-					var remoteNoteUpdated int64
-					for _, rn := range remoteMeta.Notes {
-						if rn.ID == n.ID {
-							remoteNoteUpdated = rn.UpdatedAt
-							break
-						}
-					}
-					if remoteNoteUpdated > localNoteUpdated {
-						needRemoteCopy = true
-					}
-				}
-				if needRemoteCopy {
-					remoteNotePath := "notes/" + n.ID + ".bin"
-					remoteFile, err := remoteTree.File(remoteNotePath)
+	for _, n := range mergedNotes {
+		if n.IsDeleted {
+			continue
+		}
+		localNotePath := filepath.Join(cfg.LocalPath, "notes", n.ID+".bin")
+		var localNoteHas bool
+		var localNoteUpdated int64
+		for _, ln := range localMeta.Notes {
+			if ln.ID == n.ID {
+				localNoteHas = true
+				localNoteUpdated = ln.UpdatedAt
+				break
+			}
+		}
+		var remoteNoteHas bool
+		var remoteNoteUpdated int64
+		for _, rn := range remoteMeta.Notes {
+			if rn.ID == n.ID {
+				remoteNoteHas = true
+				remoteNoteUpdated = rn.UpdatedAt
+				break
+			}
+		}
+		useRemote := false
+		if remoteNoteHas && (!localNoteHas || remoteNoteUpdated > localNoteUpdated) {
+			useRemote = true
+		}
+		if useRemote && hasRemoteMeta && remoteCommit != nil {
+			remoteTree, err := remoteCommit.Tree()
+			if err == nil {
+				remoteNotePath := "notes/" + n.ID + ".bin"
+				remoteFile, err := remoteTree.File(remoteNotePath)
+				if err == nil {
+					content, err := remoteFile.Contents()
 					if err == nil {
-						content, err := remoteFile.Contents()
-						if err == nil {
-							filesToWrite = append(filesToWrite, fileToSave{
-								Path:    filepath.Join(cfg.LocalPath, "notes", n.ID+".bin"),
-								Content: []byte(content),
-							})
-						}
+						filesToWrite = append(filesToWrite, fileToSave{
+							Path:    localNotePath,
+							Content: []byte(content),
+						})
 					}
 				}
+			}
+		} else {
+			localContent, err := ioutil.ReadFile(localNotePath)
+			if err == nil {
+				filesToWrite = append(filesToWrite, fileToSave{
+					Path:    localNotePath,
+					Content: localContent,
+				})
 			}
 		}
 	}
@@ -318,6 +332,12 @@ func (m *GitSyncManager) SafeSync(ctx context.Context, cfg GitConfig, message st
 	for _, f := range filesToWrite {
 		_ = os.MkdirAll(filepath.Dir(f.Path), 0755)
 		_ = ioutil.WriteFile(f.Path, f.Content, 0644)
+	}
+	for _, n := range mergedNotes {
+		if n.IsDeleted {
+			localNotePath := filepath.Join(cfg.LocalPath, "notes", n.ID+".bin")
+			_ = os.Remove(localNotePath)
+		}
 	}
 	_, err = w.Add(".")
 	if err != nil {

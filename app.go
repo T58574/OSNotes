@@ -22,6 +22,9 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	gitconfig "github.com/go-git/go-git/v5/config"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
+	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -365,6 +368,294 @@ func (a *App) Sync() error {
 		return fmt.Errorf("ошибка перезагрузки кэша заметок: %w", err)
 	}
 	return nil
+}
+
+func (a *App) ResetCloudData() error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.storage == nil {
+		return errors.New("locked")
+	}
+	cfg := a.config.SyncConfig
+	if cfg.RemoteURL == "" || cfg.Token == "" {
+		return errors.New("sync credentials missing")
+	}
+	localMetaBytes, err := ioutil.ReadFile(filepath.Join(a.repoDir, "meta.json"))
+	if err != nil {
+		return fmt.Errorf("failed to read local metadata: %w", err)
+	}
+	notesDir := filepath.Join(a.repoDir, "notes")
+	files, _ := ioutil.ReadDir(notesDir)
+	type noteFile struct {
+		Name    string
+		Content []byte
+	}
+	var localNotes []noteFile
+	for _, f := range files {
+		if !f.IsDir() && filepath.Ext(f.Name()) == ".bin" {
+			content, err := ioutil.ReadFile(filepath.Join(notesDir, f.Name()))
+			if err == nil {
+				localNotes = append(localNotes, noteFile{Name: f.Name(), Content: content})
+			}
+		}
+	}
+	repo, err := git.PlainOpen(a.repoDir)
+	if err != nil {
+		return err
+	}
+	_ = repo.FetchContext(context.Background(), &git.FetchOptions{
+		RemoteName: "origin",
+		Auth: &githttp.BasicAuth{
+			Username: cfg.Username,
+			Password: cfg.Token,
+		},
+	})
+	localRef, err := repo.Head()
+	if err != nil {
+		return err
+	}
+	branchName := localRef.Name().Short()
+	remoteRefName := "refs/remotes/origin/" + branchName
+	remoteRef, err := repo.Reference(plumbing.ReferenceName(remoteRefName), true)
+	if err != nil {
+		return fmt.Errorf("remote branch not found: %w", err)
+	}
+	remoteHash := remoteRef.Hash()
+	w, err := repo.Worktree()
+	if err != nil {
+		return err
+	}
+	err = w.Reset(&git.ResetOptions{
+		Commit: remoteHash,
+		Mode:   git.HardReset,
+	})
+	if err != nil {
+		return err
+	}
+	_ = os.RemoveAll(notesDir)
+	_ = os.MkdirAll(notesDir, 0755)
+	emptyMeta := storage.MetaData{
+		Version:    1,
+		LastSynced: time.Now().UnixNano() / 1e6,
+		Folders: []storage.Folder{
+			{ID: "notes-default", Name: "Заметки", IsSystem: true, CreatedAt: time.Now().UnixNano() / 1e6},
+		},
+		Notes: []storage.NoteMetadata{},
+	}
+	emptyMetaBytes, _ := json.MarshalIndent(emptyMeta, "", "  ")
+	_ = ioutil.WriteFile(filepath.Join(a.repoDir, "meta.json"), emptyMetaBytes, 0644)
+	_, _ = w.Add(".")
+	_, err = w.Commit("reset cloud data", &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  cfg.Username,
+			Email: cfg.Email,
+			When:  time.Now(),
+		},
+	})
+	if err != nil {
+		return err
+	}
+	err = repo.PushContext(context.Background(), &git.PushOptions{
+		RemoteName: "origin",
+		Auth: &githttp.BasicAuth{
+			Username: cfg.Username,
+			Password: cfg.Token,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to push reset state: %w", err)
+	}
+	_ = ioutil.WriteFile(filepath.Join(a.repoDir, "meta.json"), localMetaBytes, 0644)
+	for _, lf := range localNotes {
+		_ = ioutil.WriteFile(filepath.Join(notesDir, lf.Name), lf.Content, 0644)
+	}
+	_, _ = w.Add(".")
+	_, _ = w.Commit("restore local notes after cloud reset", &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  cfg.Username,
+			Email: cfg.Email,
+			When:  time.Now(),
+		},
+	})
+	return nil
+}
+
+func (a *App) PullFromCloud() error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.storage == nil {
+		return errors.New("locked")
+	}
+	cfg := a.config.SyncConfig
+	if cfg.RemoteURL == "" || cfg.Token == "" {
+		return errors.New("sync credentials missing")
+	}
+	repo, err := git.PlainOpen(a.repoDir)
+	if err != nil {
+		return err
+	}
+	err = repo.FetchContext(context.Background(), &git.FetchOptions{
+		RemoteName: "origin",
+		Auth: &githttp.BasicAuth{
+			Username: cfg.Username,
+			Password: cfg.Token,
+		},
+	})
+	if err != nil && !errors.Is(err, git.NoErrAlreadyUpToDate) {
+		return err
+	}
+	localRef, err := repo.Head()
+	if err != nil {
+		return err
+	}
+	branchName := localRef.Name().Short()
+	remoteRefName := "refs/remotes/origin/" + branchName
+	remoteRef, err := repo.Reference(plumbing.ReferenceName(remoteRefName), true)
+	if err != nil {
+		return fmt.Errorf("remote branch not found: %w", err)
+	}
+	remoteHash := remoteRef.Hash()
+	w, err := repo.Worktree()
+	if err != nil {
+		return err
+	}
+	err = w.Reset(&git.ResetOptions{
+		Commit: remoteHash,
+		Mode:   git.HardReset,
+	})
+	if err != nil {
+		return err
+	}
+	notesDir := filepath.Join(a.repoDir, "notes")
+	_ = os.RemoveAll(notesDir)
+	_ = os.MkdirAll(notesDir, 0755)
+	remoteCommit, err := repo.CommitObject(remoteHash)
+	if err == nil {
+		remoteTree, err := remoteCommit.Tree()
+		if err == nil {
+			remoteMetaFile, err := remoteTree.File("meta.json")
+			if err == nil {
+				remoteMetaStr, err := remoteMetaFile.Contents()
+				if err == nil {
+					var remoteMeta storage.MetaData
+					if err := json.Unmarshal([]byte(remoteMetaStr), &remoteMeta); err == nil {
+						_ = ioutil.WriteFile(filepath.Join(a.repoDir, "meta.json"), []byte(remoteMetaStr), 0644)
+						for _, n := range remoteMeta.Notes {
+							if !n.IsDeleted {
+								remoteNotePath := "notes/" + n.ID + ".bin"
+								remoteFile, err := remoteTree.File(remoteNotePath)
+								if err == nil {
+									content, err := remoteFile.Contents()
+									if err == nil {
+										_ = ioutil.WriteFile(filepath.Join(notesDir, n.ID+".bin"), []byte(content), 0644)
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	err = a.storage.Reload()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *App) ForcePushToCloud() error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.storage == nil {
+		return errors.New("locked")
+	}
+	cfg := a.config.SyncConfig
+	if cfg.RemoteURL == "" || cfg.Token == "" {
+		return errors.New("sync credentials missing")
+	}
+	localMetaBytes, err := ioutil.ReadFile(filepath.Join(a.repoDir, "meta.json"))
+	if err != nil {
+		return fmt.Errorf("failed to read local metadata: %w", err)
+	}
+	notesDir := filepath.Join(a.repoDir, "notes")
+	files, _ := ioutil.ReadDir(notesDir)
+	type noteFile struct {
+		Name    string
+		Content []byte
+	}
+	var localNotes []noteFile
+	for _, f := range files {
+		if !f.IsDir() && filepath.Ext(f.Name()) == ".bin" {
+			content, err := ioutil.ReadFile(filepath.Join(notesDir, f.Name()))
+			if err == nil {
+				localNotes = append(localNotes, noteFile{Name: f.Name(), Content: content})
+			}
+		}
+	}
+	repo, err := git.PlainOpen(a.repoDir)
+	if err != nil {
+		return err
+	}
+	_ = repo.FetchContext(context.Background(), &git.FetchOptions{
+		RemoteName: "origin",
+		Auth: &githttp.BasicAuth{
+			Username: cfg.Username,
+			Password: cfg.Token,
+		},
+	})
+	localRef, err := repo.Head()
+	if err != nil {
+		return err
+	}
+	branchName := localRef.Name().Short()
+	remoteRefName := "refs/remotes/origin/" + branchName
+	remoteRef, err := repo.Reference(plumbing.ReferenceName(remoteRefName), true)
+	if err != nil {
+		return a.syncManager.CommitAndPush(context.Background(), gitsync.GitConfig{
+			LocalPath: a.repoDir,
+			RemoteURL: cfg.RemoteURL,
+			Username:  cfg.Username,
+			Token:     cfg.Token,
+			Email:     cfg.Email,
+		}, "force push local state")
+	}
+	remoteHash := remoteRef.Hash()
+	w, err := repo.Worktree()
+	if err != nil {
+		return err
+	}
+	err = w.Reset(&git.ResetOptions{
+		Commit: remoteHash,
+		Mode:   git.HardReset,
+	})
+	if err != nil {
+		return err
+	}
+	_ = os.RemoveAll(notesDir)
+	_ = os.MkdirAll(notesDir, 0755)
+	_ = ioutil.WriteFile(filepath.Join(a.repoDir, "meta.json"), localMetaBytes, 0644)
+	for _, lf := range localNotes {
+		_ = ioutil.WriteFile(filepath.Join(notesDir, lf.Name), lf.Content, 0644)
+	}
+	_, _ = w.Add(".")
+	_, err = w.Commit("force sync local notes to cloud", &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  cfg.Username,
+			Email: cfg.Email,
+			When:  time.Now(),
+		},
+	})
+	if err != nil {
+		return err
+	}
+	return repo.PushContext(context.Background(), &git.PushOptions{
+		RemoteName: "origin",
+		Auth: &githttp.BasicAuth{
+			Username: cfg.Username,
+			Password: cfg.Token,
+		},
+	})
 }
 
 func (a *App) ConnectWithGitHubCLI() (string, error) {

@@ -18,7 +18,10 @@ import {
 	AutoUnlockIfNeeded,
 	SetPasswordEnabled,
 	ConnectWithGitHubCLI,
-	OpenURL
+	OpenURL,
+	ResetCloudData,
+	PullFromCloud,
+	ForcePushToCloud
 } from '../wailsjs/go/main/App';
 
 interface Folder {
@@ -46,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	let currentNoteId: string | null = null;
 	let isCodeMode = false;
 	let autoSaveTimeout: number | null = null;
+	let autoSyncTimeout: number | null = null;
 	let folderToDeleteId: string | null = null;
 
 	const appContainer = document.getElementById('app') as HTMLElement;
@@ -119,6 +123,9 @@ document.addEventListener('DOMContentLoaded', () => {
 	const syncUserText = document.getElementById('syncUserText') as HTMLElement;
 	const syncNowBtn = document.getElementById('syncNowBtn') as HTMLElement;
 	const syncLogoutBtn = document.getElementById('syncLogoutBtn') as HTMLElement;
+	const pullFromCloudBtn = document.getElementById('pullFromCloudBtn') as HTMLElement;
+	const forcePushToCloudBtn = document.getElementById('forcePushToCloudBtn') as HTMLElement;
+	const resetCloudDataBtn = document.getElementById('resetCloudDataBtn') as HTMLElement;
 
 	const ghCliModal = document.getElementById('ghCliModal') as HTMLElement;
 	const ghCliModalTitle = document.getElementById('ghCliModalTitle') as HTMLElement;
@@ -655,11 +662,29 @@ document.addEventListener('DOMContentLoaded', () => {
 					await SaveNote(currentNoteId, folderId, titleText, htmlContent);
 					updateFolderCounts();
 					renderFolders();
+					triggerAutoSync();
 				} catch (err) {
 					console.error(err);
 				}
 			}
 		}, 1500);
+	}
+
+	function triggerAutoSync() {
+		if (autoSyncTimeout) {
+			clearTimeout(autoSyncTimeout);
+		}
+		autoSyncTimeout = window.setTimeout(async () => {
+			try {
+				const config = await GetSyncConfig();
+				if (config.token && config.remote_url) {
+					await Sync();
+					await loadData();
+				}
+			} catch (err) {
+				console.error(err);
+			}
+		}, 60000);
 	}
 
 	function updateNoteItemDOM(note: NoteMetadata) {
@@ -700,6 +725,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			await SaveNote(currentNoteId, folderId, titleText, htmlContent);
 			doneBtn.classList.add('hidden');
 			await loadData();
+			triggerAutoSync();
 		} catch (err) {
 			console.error(err);
 		}
@@ -719,6 +745,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			if (window.innerWidth < 768) {
 				setMobileView('notes');
 			}
+			triggerAutoSync();
 		} catch (err) {
 			console.error(err);
 		}
@@ -774,6 +801,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			await CreateFolder(name);
 			folderModal.classList.add('hidden');
 			await loadData();
+			triggerAutoSync();
 		} catch (err) {
 			console.error(err);
 		}
@@ -792,6 +820,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			deleteFolderModal.classList.add('hidden');
 			folderToDeleteId = null;
 			await loadData();
+			triggerAutoSync();
 		} catch (err) {
 			console.error(err);
 		}
@@ -1109,6 +1138,61 @@ document.addEventListener('DOMContentLoaded', () => {
 		} finally {
 			syncNowBtn.classList.remove('disabled');
 			syncNowBtn.textContent = originalText;
+		}
+	});
+
+	pullFromCloudBtn.addEventListener('click', async () => {
+		if (confirm('Внимание! Это действие заменит ВСЕ ваши локальные заметки и папки данными из облака. Продолжить?')) {
+			pullFromCloudBtn.classList.add('disabled');
+			const originalText = pullFromCloudBtn.textContent;
+			pullFromCloudBtn.textContent = 'Получение...';
+			try {
+				await PullFromCloud();
+				alert('Данные успешно загружены из облака!');
+				await loadData();
+			} catch (err) {
+				console.error(err);
+				alert('Ошибка получения данных: ' + err);
+			} finally {
+				pullFromCloudBtn.classList.remove('disabled');
+				pullFromCloudBtn.textContent = originalText;
+			}
+		}
+	});
+
+	forcePushToCloudBtn.addEventListener('click', async () => {
+		if (confirm('Внимание! Это действие перезапишет все данные в облаке вашим локальным состоянием. Продолжить?')) {
+			forcePushToCloudBtn.classList.add('disabled');
+			const originalText = forcePushToCloudBtn.textContent;
+			forcePushToCloudBtn.textContent = 'Отправка...';
+			try {
+				await ForcePushToCloud();
+				alert('Локальные данные успешно отправлены в облако!');
+			} catch (err) {
+				console.error(err);
+				alert('Ошибка отправки данных: ' + err);
+			} finally {
+				forcePushToCloudBtn.classList.remove('disabled');
+				forcePushToCloudBtn.textContent = originalText;
+			}
+		}
+	});
+
+	resetCloudDataBtn.addEventListener('click', async () => {
+		if (confirm('Опасное действие! Вы действительно хотите полностью УДАЛИТЬ все заметки и папки из облака? Локальные файлы останутся целы.')) {
+			resetCloudDataBtn.classList.add('disabled');
+			const originalText = resetCloudDataBtn.textContent;
+			resetCloudDataBtn.textContent = 'Сброс...';
+			try {
+				await ResetCloudData();
+				alert('Данные в облаке успешно удалены!');
+			} catch (err) {
+				console.error(err);
+				alert('Ошибка удаления данных из облака: ' + err);
+			} finally {
+				resetCloudDataBtn.classList.remove('disabled');
+				resetCloudDataBtn.textContent = originalText;
+			}
 		}
 	});
 

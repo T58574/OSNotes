@@ -2,6 +2,7 @@ package storage
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -72,7 +73,34 @@ func (sm *StorageManager) loadMeta() error {
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(data, &sm.meta)
+	if err := json.Unmarshal(data, &sm.meta); err != nil {
+		return err
+	}
+	repaired := false
+	for i, f := range sm.meta.Folders {
+		hasInvalid := false
+		for _, r := range f.ID {
+			if r == '\uFFFD' || r < 32 || r > 126 {
+				hasInvalid = true
+				break
+			}
+		}
+		if hasInvalid {
+			newID := fmt.Sprintf("folder_repaired_%d", time.Now().UnixNano()+int64(i))
+			oldID := f.ID
+			sm.meta.Folders[i].ID = newID
+			for j, n := range sm.meta.Notes {
+				if n.FolderID == oldID {
+					sm.meta.Notes[j].FolderID = newID
+				}
+			}
+			repaired = true
+		}
+	}
+	if repaired {
+		_ = sm.saveMeta()
+	}
+	return nil
 }
 
 func (sm *StorageManager) Reload() error {
@@ -104,7 +132,7 @@ func (sm *StorageManager) CreateFolder(name string) Folder {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	f := Folder{
-		ID:        "folder_" + string(time.Now().UnixNano()),
+		ID:        fmt.Sprintf("folder_%d", time.Now().UnixNano()),
 		Name:      name,
 		IsSystem:  false,
 		CreatedAt: time.Now().UnixNano() / 1e6,
