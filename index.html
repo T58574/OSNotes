@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Заметки iOS</title>
+    <!-- Подключаем современный шрифт, похожий на San Francisco -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app" class="ios-notes-app">
+        <!-- ПАНЕЛЬ 1: Папки (Folders Sidebar) -->
+        <aside class="panel folders-panel" id="foldersPanel">
+            <header class="panel-header">
+                <span class="header-action disabled">Изменить</span>
+                <span class="header-title">Папки</span>
+                <span class="header-action-placeholder"></span>
+            </header>
+            
+            <div class="search-container">
+                <div class="search-bar">
+                    <svg class="icon search-icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                    <input type="text" id="foldersSearch" placeholder="Поиск">
+                </div>
+            </div>
+
+            <div class="folders-list-wrapper">
+                <div class="section-title">iCloud</div>
+                <ul class="folders-list" id="foldersList">
+                    <!-- Будет сгенерировано динамически из JS -->
+                </ul>
+            </div>
+
+            <footer class="panel-footer">
+                <button class="footer-btn text-accent" id="newFolderBtn">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-1 8h-3v3h-2v-3h-3v-2h3V9h2v3h3v2z"/></svg>
+                    <span>Новая папка</span>
+                </button>
+                <button class="footer-btn-icon" id="themeToggleBtn" title="Сменить тему">
+                    <svg class="icon moon-icon" viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/></svg>
+                    <svg class="icon sun-icon hidden" viewBox="0 0 24 24"><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0s-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0s-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41l-1.06-1.06zm1.06-12.37c-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06c.39-.38.39-1.02 0-1.41zm-12.37 12.37c-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06c.39-.38.39-1.02 0-1.41z"/></svg>
+                </button>
+            </footer>
+        </aside>
+
+        <!-- ПАНЕЛЬ 2: Список заметок (Notes List Sidebar) -->
+        <aside class="panel notes-panel" id="notesPanel">
+            <header class="panel-header">
+                <button class="back-btn header-action text-accent" id="toFoldersBtn">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z"/></svg>
+                    <span>Папки</span>
+                </button>
+                <span class="header-title" id="currentFolderTitle">Заметки</span>
+                <button class="header-action text-accent" id="editNotesListBtn">Изменить</button>
+            </header>
+
+            <div class="search-container">
+                <div class="search-bar-wrapper">
+                    <div class="search-bar">
+                        <svg class="icon search-icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                        <input type="text" id="notesSearch" placeholder="Поиск">
+                        <button class="clear-search-btn hidden" id="clearSearchBtn">
+                            <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                        </button>
+                    </div>
+                    <button class="search-cancel-btn text-accent hidden" id="cancelSearchBtn">Отмена</button>
+                </div>
+            </div>
+
+            <div class="notes-list-container" id="notesListContainer">
+                <div class="notes-list" id="notesList">
+                    <!-- Будет сгенерировано динамически из JS -->
+                </div>
+                <div class="no-notes-message hidden" id="noNotesMessage">Нет заметок</div>
+            </div>
+
+            <footer class="panel-footer">
+                <!-- Скрытый инпут для импорта файлов -->
+                <input type="file" id="importHtmlInput" accept=".html,.txt" class="hidden">
+                <button class="footer-btn-icon text-accent" id="importHtmlBtn" title="Импортировать HTML-файл">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+                </button>
+                <div class="notes-count-text" id="notesCountText">0 заметок</div>
+                <button class="footer-btn-icon text-accent" id="newNoteBtn" title="Новая заметка">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                </button>
+            </footer>
+        </aside>
+
+        <!-- ПАНЕЛЬ 3: Редактор (Editor Panel) -->
+        <main class="panel editor-panel" id="editorPanel">
+            <header class="panel-header">
+                <!-- Кнопка назад для мобильных устройств -->
+                <button class="back-btn header-action text-accent" id="toNotesBtn">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z"/></svg>
+                    <span id="backToNotesText">Заметки</span>
+                </button>
+                
+                <div class="editor-header-actions-left">
+                    <button class="header-btn-icon text-accent" id="toggleSidebarsBtn" title="Скрыть боковые панели">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M4 6h18v2H4zm0 5h18v2H4zm0 5h18v2H4z"/></svg>
+                    </button>
+                </div>
+                
+                <div class="editor-header-actions-right">
+                    <!-- Поделиться/Экспорт -->
+                    <button class="header-btn-icon text-accent" id="shareBtn" title="Поделиться">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/></svg>
+                    </button>
+                    <!-- Удалить -->
+                    <button class="header-btn-icon text-accent" id="deleteNoteBtn" title="Удалить заметку">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                    </button>
+                    <!-- Форматирование -->
+                    <button class="header-btn-icon text-accent" id="formatBtn" title="Форматирование текста">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M9.58 13H14.42L12 6.8 9.58 13zM21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-6.2 15l-1.07-2.9h-3.46L9.2 18H7.13L11 8h2l3.87 10h-2.07z"/></svg>
+                    </button>
+                    <!-- Добавить чек-лист -->
+                    <button class="header-btn-icon text-accent" id="checklistBtn" title="Добавить список дел">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                    </button>
+                    <!-- Режим кода -->
+                    <button class="header-btn-icon text-accent" id="codeModeBtn" title="Режим HTML-кода">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
+                    </button>
+                    <!-- Запустить HTML -->
+                    <button class="header-btn-icon text-accent" id="runHtmlBtn" title="Запустить HTML (Просмотр)">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    </button>
+                    <!-- Готово -->
+                    <button class="header-action text-accent font-semibold hidden" id="doneBtn">Готово</button>
+                </div>
+            </header>
+
+            <div class="editor-content-wrapper" id="editorContentWrapper">
+                <div class="editor-meta" id="editorMeta">8 июня 2026 г., 09:41</div>
+                
+                <div class="editor-body-container">
+                    <div class="editor-body" id="editorBody" contenteditable="true" data-placeholder="Новая заметка">
+                        <!-- Здесь пользователь пишет свою заметку -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Всплывающая панель форматирования (iOS Style Text Options) -->
+            <div class="format-popup hidden" id="formatPopup">
+                <div class="format-popup-arrow"></div>
+                <div class="format-popup-content">
+                    <div class="format-styles">
+                        <button class="format-style-btn" data-command="formatBlock" data-value="h1">Название</button>
+                        <button class="format-style-btn" data-command="formatBlock" data-value="h2">Заголовок</button>
+                        <button class="format-style-btn" data-command="formatBlock" data-value="h3">Подзаголовок</button>
+                        <button class="format-style-btn active" data-command="formatBlock" data-value="p">Тело</button>
+                        <button class="format-style-btn" data-command="formatBlock" data-value="pre">Моноширинный</button>
+                    </div>
+                    <div class="format-divider"></div>
+                    <div class="format-inline">
+                        <button class="format-inline-btn" data-command="bold" title="Жирный">
+                            <span style="font-weight: bold;">B</span>
+                        </button>
+                        <button class="format-inline-btn" data-command="italic" title="Курсив">
+                            <span style="font-style: italic;">I</span>
+                        </button>
+                        <button class="format-inline-btn" data-command="underline" title="Подчеркнутый">
+                            <span style="text-decoration: underline;">U</span>
+                        </button>
+                        <button class="format-inline-btn" data-command="strikeThrough" title="Зачеркнутый">
+                            <span style="text-decoration: line-through;">S</span>
+                        </button>
+                    </div>
+                    <div class="format-divider"></div>
+                    <div class="format-lists">
+                        <button class="format-list-btn" data-command="insertUnorderedList" title="Маркированный список">
+                            <svg viewBox="0 0 24 24"><path d="M4 10.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0-6c-.83 0-1.5.67-1.5 1.5S3.17 7 4 7s1.5-.67 1.5-1.5S4.83 4.5 4 4.5zm0 12c-.83 0-1.5.68-1.5 1.5s.68 1.5 1.5 1.5 1.5-.68 1.5-1.5-.68-1.5-1.5-1.5zM7 19h14v-2H7v2zm0-6h14v-2H7v2zm0-7v2h14V6H7z"/></svg>
+                        </button>
+                        <button class="format-list-btn" data-command="insertOrderedList" title="Нумерованный список">
+                            <svg viewBox="0 0 24 24"><path d="M2 17h2v.5H3v1h1v.5H2v1h3v-4H2v1zm1-9h1V4H2v1h1v3zm-1 3h1.8L2 13.1v.9h3v-1H3.2L5 10.9v-.9H2v1zm5-6v2h14V6H7zm0 7h14v-2H7v2zm0 6h14v-2H7v2z"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Модальное окно создания/редактирования папки -->
+    <div class="modal-overlay hidden" id="folderModal">
+        <div class="ios-alert">
+            <div class="alert-title">Новая папка</div>
+            <div class="alert-message">Введите имя для этой папки.</div>
+            <div class="alert-input-wrapper">
+                <input type="text" id="folderNameInput" placeholder="Имя папки" autofocus>
+            </div>
+            <div class="alert-actions">
+                <button class="alert-action-btn cancel" id="cancelFolderModalBtn">Отмена</button>
+                <button class="alert-action-btn confirm" id="saveFolderModalBtn">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Всплывающее окно "Поделиться" -->
+    <div class="modal-overlay hidden" id="shareModal">
+        <div class="ios-action-sheet">
+            <div class="sheet-title">Поделиться заметкой</div>
+            <div class="sheet-options">
+                <button class="sheet-option-btn" id="shareCopyBtn">
+                    <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                    <span>Скопировать текст</span>
+                </button>
+                <button class="sheet-option-btn" id="shareDownloadBtn">
+                    <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+                    <span>Скачать как файл .txt</span>
+                </button>
+            </div>
+            <button class="sheet-cancel-btn" id="cancelShareBtn">Отмена</button>
+        </div>
+    </div>
+
+    <!-- Модальное окно подтверждения удаления папки (для кастомных папок) -->
+    <div class="modal-overlay hidden" id="deleteFolderModal">
+        <div class="ios-alert destructive">
+            <div class="alert-title">Удалить папку?</div>
+            <div class="alert-message">Заметки в этой папке не будут удалены, они переместятся в папку «Заметки».</div>
+            <div class="alert-actions">
+                <button class="alert-action-btn cancel" id="cancelDelFolderBtn">Отмена</button>
+                <button class="alert-action-btn confirm" id="confirmDelFolderBtn">Удалить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно просмотра HTML (HTML Runner) -->
+    <div class="modal-overlay hidden" id="htmlRunnerModal">
+        <div class="ios-html-preview">
+            <header class="panel-header">
+                <button class="header-action text-accent" id="closeHtmlRunnerBtn">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z"/></svg>
+                    <span>Назад</span>
+                </button>
+                <span class="header-title">Предпросмотр HTML</span>
+                <button class="header-action text-accent" id="refreshHtmlRunnerBtn">Обновить</button>
+            </header>
+            <div class="preview-iframe-wrapper">
+                <iframe id="htmlPreviewIframe" sandbox="allow-scripts"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
